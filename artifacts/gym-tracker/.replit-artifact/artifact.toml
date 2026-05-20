@@ -1,0 +1,22 @@
+kind = "web"
+previewPath = "/"
+title = "Gym Tracker"
+version = "1.0.0"
+id = "artifacts/gym-tracker"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 5173
+
+[services.development]
+run = "pnpm --filter @workspace/gym-tracker run dev"
+
+[services.env]
+PORT = "5173"
+BASE_PATH = "/"
