@@ -48,9 +48,17 @@ app.use("/mcp", (req, res, next) => {
 
 setupMcpRoutes(app);
 
-const frontendDist = path.join(process.cwd(), "artifacts/gym-tracker/dist/public");
+// Locate the built frontend regardless of the working directory the server was
+// started from. FRONTEND_DIST overrides; otherwise check relative to the bundle
+// (dist/ -> ../../gym-tracker/dist/public) and relative to the repo root.
+const frontendDistCandidates = [
+  process.env["FRONTEND_DIST"],
+  path.resolve(__dirname, "../../gym-tracker/dist/public"),
+  path.join(process.cwd(), "artifacts/gym-tracker/dist/public"),
+].filter((p): p is string => !!p);
+const frontendDist = frontendDistCandidates.find((p) => fs.existsSync(p));
 
-if (fs.existsSync(frontendDist)) {
+if (frontendDist) {
   // Production: serve the built React app as static files
   app.use(express.static(frontendDist));
   // Express 5 requires "/{*path}" — plain "*" doesn't match multi-segment paths
@@ -72,6 +80,11 @@ if (fs.existsSync(frontendDist)) {
     );
     logger.info({ target: devTarget }, "Dev proxy active: forwarding / to gym-tracker Vite server");
   });
+} else {
+  logger.warn(
+    { candidates: frontendDistCandidates },
+    "No built frontend found — only /api and /mcp are served. Build @workspace/gym-tracker first.",
+  );
 }
 
 export default app;
