@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, sets, type Set } from "@workspace/db";
+import { db, sets, sessionExercises, sessions, type Set } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -19,6 +19,18 @@ function serializeSet(s: Set) {
     reps: s.reps,
     weightKg: numOrNull(s.weightKg),
   };
+}
+
+/** Returns the set only if it belongs to a session owned by the user. */
+async function findOwnedSet(setId: string, userId: string): Promise<Set | null> {
+  const rows = await db
+    .select({ set: sets })
+    .from(sets)
+    .innerJoin(sessionExercises, eq(sets.sessionExerciseId, sessionExercises.id))
+    .innerJoin(sessions, eq(sessionExercises.sessionId, sessions.id))
+    .where(and(eq(sets.id, setId), eq(sessions.userId, userId)))
+    .limit(1);
+  return rows[0]?.set ?? null;
 }
 
 const updateSetSchema = z.object({
@@ -51,9 +63,7 @@ router.put("/sets/:id", async (req, res) => {
   const setId = req.params.id!;
 
   try {
-    const existing = await db.query.sets.findFirst({
-      where: eq(sets.id, setId),
-    });
+    const existing = await findOwnedSet(setId, req.userId);
     if (!existing) {
       res.status(404).json({ error: "Set not found" });
       return;
@@ -79,9 +89,7 @@ router.put("/sets/:id", async (req, res) => {
 
 router.delete("/sets/:id", async (req, res) => {
   try {
-    const existing = await db.query.sets.findFirst({
-      where: eq(sets.id, req.params.id!),
-    });
+    const existing = await findOwnedSet(req.params.id!, req.userId);
     if (!existing) {
       res.status(404).json({ error: "Set not found" });
       return;

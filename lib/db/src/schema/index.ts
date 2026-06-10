@@ -11,8 +11,16 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const plans = pgTable("plans", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // Nullable for pre-multi-user rows; backfilled to the default user at boot
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -33,6 +41,8 @@ export const planExercises = pgTable("plan_exercises", {
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // Nullable for pre-multi-user rows; backfilled to the default user at boot
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   planId: uuid("plan_id").references(() => plans.id, { onDelete: "set null" }),
   date: date("date").notNull(),
   name: text("name").notNull(),
@@ -113,6 +123,7 @@ export const insertSessionExerciseSchema = createInsertSchema(
 ).omit({ id: true });
 export const insertSetSchema = createInsertSchema(sets).omit({ id: true });
 
+export type User = typeof users.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
 export type PlanExercise = typeof planExercises.$inferSelect;
 export type Session = typeof sessions.$inferSelect;

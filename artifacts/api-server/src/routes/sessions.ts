@@ -56,6 +56,7 @@ function serializeSessionExercise(se: SessionExerciseWithSets, lastBySetNumber?:
 async function fetchLastSessionSetsForExercises(
   exerciseNames: string[],
   currentSessionId: string,
+  userId: string,
 ): Promise<Map<string, LastSetMap>> {
   if (exerciseNames.length === 0) return new Map();
 
@@ -70,7 +71,13 @@ async function fetchLastSessionSetsForExercises(
       })
       .from(sessionExercises)
       .innerJoin(sessions, eq(sessionExercises.sessionId, sessions.id))
-      .where(and(eq(sessionExercises.name, name), ne(sessionExercises.sessionId, currentSessionId)))
+      .where(
+        and(
+          eq(sessionExercises.name, name),
+          ne(sessionExercises.sessionId, currentSessionId),
+          eq(sessions.userId, userId),
+        ),
+      )
       .orderBy(desc(sessions.date), desc(sessions.createdAt))
       .limit(1);
 
@@ -95,9 +102,9 @@ async function fetchLastSessionSetsForExercises(
   return result;
 }
 
-async function getSessionWithDetail(sessionId: string) {
+async function getSessionWithDetail(sessionId: string, userId: string) {
   const session = await db.query.sessions.findFirst({
-    where: eq(sessions.id, sessionId),
+    where: and(eq(sessions.id, sessionId), eq(sessions.userId, userId)),
     with: {
       sessionExercises: {
         orderBy: (se, { asc }) => [asc(se.sortOrder)],
@@ -111,7 +118,7 @@ async function getSessionWithDetail(sessionId: string) {
   if (!session) return null;
 
   const exerciseNames = [...new Set(session.sessionExercises.map((se) => se.name))];
-  const lastSetsMap = await fetchLastSessionSetsForExercises(exerciseNames, sessionId);
+  const lastSetsMap = await fetchLastSessionSetsForExercises(exerciseNames, sessionId, userId);
 
   return {
     id: session.id,
@@ -168,6 +175,7 @@ router.get("/sessions", async (req, res) => {
     const offset = Number(req.query["offset"] ?? 0);
 
     const allSessions = await db.query.sessions.findMany({
+      where: eq(sessions.userId, req.userId),
       orderBy: [desc(sessions.date), desc(sessions.createdAt)],
       limit,
       offset,
@@ -237,6 +245,7 @@ router.post("/sessions", async (req, res) => {
       const [session] = await tx
         .insert(sessions)
         .values({
+          userId: req.userId,
           planId: planId ?? null,
           date,
           name,
@@ -251,7 +260,7 @@ router.post("/sessions", async (req, res) => {
         exercisesToInsert = buildSessionExerciseValues(bodyExercises, session.id);
       } else if (planId) {
         const plan = await tx.query.plans.findFirst({
-          where: eq(plans.id, planId),
+          where: and(eq(plans.id, planId), eq(plans.userId, req.userId)),
           with: {
             planExercises: { orderBy: (pe, { asc }) => [asc(pe.sortOrder)] },
           },
@@ -276,7 +285,7 @@ router.post("/sessions", async (req, res) => {
       return session.id;
     });
 
-    const result = await getSessionWithDetail(sessionId);
+    const result = await getSessionWithDetail(sessionId, req.userId);
     res.status(201).json(result);
   } catch {
     res.status(500).json({ error: "Failed to create session" });
@@ -285,7 +294,7 @@ router.post("/sessions", async (req, res) => {
 
 router.get("/sessions/:id", async (req, res) => {
   try {
-    const session = await getSessionWithDetail(req.params.id!);
+    const session = await getSessionWithDetail(req.params.id!, req.userId);
     if (!session) {
       res.status(404).json({ error: "Session not found" });
       return;
@@ -312,7 +321,7 @@ router.patch("/sessions/:id", async (req, res) => {
 
   try {
     const existing = await db.query.sessions.findFirst({
-      where: eq(sessions.id, req.params.id!),
+      where: and(eq(sessions.id, req.params.id!), eq(sessions.userId, req.userId)),
     });
     if (!existing) {
       res.status(404).json({ error: "Session not found" });
@@ -334,7 +343,7 @@ router.patch("/sessions/:id", async (req, res) => {
       await db.update(sessions).set(updates).where(eq(sessions.id, req.params.id!));
     }
 
-    const result = await getSessionWithDetail(req.params.id!);
+    const result = await getSessionWithDetail(req.params.id!, req.userId);
     res.json(result);
   } catch {
     res.status(500).json({ error: "Failed to update session" });
@@ -354,10 +363,13 @@ router.patch("/sessions/:id/exercises/:exerciseId", async (req, res) => {
   }
 
   try {
+    const session = await db.query.sessions.findFirst({
+      where: and(eq(sessions.id, req.params.id!), eq(sessions.userId, req.userId)),
+    });
     const se = await db.query.sessionExercises.findFirst({
       where: eq(sessionExercises.id, req.params.exerciseId!),
     });
-    if (!se || se.sessionId !== req.params.id) {
+    if (!session || !se || se.sessionId !== req.params.id) {
       res.status(404).json({ error: "Session exercise not found in this session" });
       return;
     }
@@ -386,10 +398,13 @@ router.patch("/sessions/:id/exercises/:exerciseId", async (req, res) => {
 
 router.delete("/sessions/:id/exercises/:exerciseId", async (req, res) => {
   try {
+    const session = await db.query.sessions.findFirst({
+      where: and(eq(sessions.id, req.params.id!), eq(sessions.userId, req.userId)),
+    });
     const se = await db.query.sessionExercises.findFirst({
       where: eq(sessionExercises.id, req.params.exerciseId!),
     });
-    if (!se || se.sessionId !== req.params.id) {
+    if (!session || !se || se.sessionId !== req.params.id) {
       res.status(404).json({ error: "Session exercise not found in this session" });
       return;
     }
@@ -412,7 +427,7 @@ router.post("/sessions/:id/exercises", async (req, res) => {
 
   try {
     const session = await db.query.sessions.findFirst({
-      where: eq(sessions.id, sessionId),
+      where: and(eq(sessions.id, sessionId), eq(sessions.userId, req.userId)),
     });
     if (!session) {
       res.status(404).json({ error: "Session not found" });
@@ -446,7 +461,7 @@ router.post("/sessions/:id/exercises", async (req, res) => {
 router.delete("/sessions/:id", async (req, res) => {
   try {
     const existing = await db.query.sessions.findFirst({
-      where: eq(sessions.id, req.params.id!),
+      where: and(eq(sessions.id, req.params.id!), eq(sessions.userId, req.userId)),
     });
     if (!existing) {
       res.status(404).json({ error: "Session not found" });
@@ -478,7 +493,7 @@ router.post("/sessions/:id/sets", async (req, res) => {
 
   try {
     const session = await db.query.sessions.findFirst({
-      where: eq(sessions.id, sessionId),
+      where: and(eq(sessions.id, sessionId), eq(sessions.userId, req.userId)),
     });
     if (!session) {
       res.status(404).json({ error: "Session not found" });

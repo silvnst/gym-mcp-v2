@@ -3,9 +3,20 @@
 Personal gym tracker with a built-in **MCP server**, so AI assistants (e.g. Claude) can read and log your training data.
 
 - 📱 Mobile-first React app: plans, live workout logging, history & progress charts
+- 👥 Lightweight multi-user: shareable profiles (no passwords), each with their own plans, workouts, and stats
 - ✏️ Recorded workouts are fully editable (name, date, duration, notes, exercises, sets)
 - ⏱️ Workout duration is tracked automatically and shown in the history
 - 🤖 MCP endpoint at `/mcp` with tools like `get_history`, `log_session`, `update_session`, `get_prs`, `get_training_context`
+
+## Multi-user (profiles)
+
+The app uses **Netflix-style profiles** — pick (or create) a profile on first load, switch any time via the profile button in the bottom nav. There are no passwords: anyone with the URL can use any profile, which keeps sharing with friends/family frictionless. Don't use it for data you need protected from the people you share the link with.
+
+How it works:
+
+- A `users` table owns plans & sessions; every API request is scoped by an `X-User-Id` header the frontend sends automatically.
+- Requests without the header act as the **default user** (the oldest profile), so existing API usage keeps working. Data created before multi-user support is adopted by the default user on first boot (set `DEFAULT_USER_NAME` to control its name).
+- MCP connections pick their user with `?user=<profile name or id>` (case-insensitive name match), e.g. `/mcp?token=<secret>&user=anna`. Without the param the default user is used.
 
 ## Architecture
 
@@ -106,6 +117,7 @@ pnpm --filter @workspace/api-spec codegen
 | `PORT` | `8080` | HTTP port (injected by Railway) |
 | `DATABASE_URL` | — (required) | Postgres connection string |
 | `MCP_SECRET` | unset | When set, `/mcp` requires `?token=<MCP_SECRET>` |
+| `DEFAULT_USER_NAME` | `Default` | Name of the auto-created first profile |
 | `FRONTEND_ORIGIN` | `*` | CORS allowed origin |
 | `FRONTEND_DIST` | auto-detected | Override path to the built frontend |
 | `GYM_TRACKER_DEV_URL` | `http://localhost:5173` | Dev-only Vite proxy target |

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, plans, planExercises, type Plan, type PlanExercise } from "@workspace/db";
 
@@ -34,9 +34,9 @@ function serializePlan(plan: Plan & { planExercises: PlanExercise[] }) {
   };
 }
 
-async function getPlanWithExercises(planId: string) {
+async function getPlanWithExercises(planId: string, userId: string) {
   const plan = await db.query.plans.findFirst({
-    where: eq(plans.id, planId),
+    where: and(eq(plans.id, planId), eq(plans.userId, userId)),
     with: {
       planExercises: { orderBy: (pe, { asc }) => [asc(pe.sortOrder)] },
     },
@@ -74,9 +74,10 @@ function buildExerciseValues(exercises: CreatePlanInput["exercises"], planId: st
   }));
 }
 
-router.get("/plans", async (_req, res) => {
+router.get("/plans", async (req, res) => {
   try {
     const allPlans = await db.query.plans.findMany({
+      where: eq(plans.userId, req.userId),
       with: {
         planExercises: { orderBy: (pe, { asc }) => [asc(pe.sortOrder)] },
       },
@@ -99,14 +100,14 @@ router.post("/plans", async (req, res) => {
 
   try {
     const planId = await db.transaction(async (tx) => {
-      const [plan] = await tx.insert(plans).values({ name, notes }).returning();
+      const [plan] = await tx.insert(plans).values({ name, notes, userId: req.userId }).returning();
       if (exercises.length > 0) {
         await tx.insert(planExercises).values(buildExerciseValues(exercises, plan.id));
       }
       return plan.id;
     });
 
-    const result = await getPlanWithExercises(planId);
+    const result = await getPlanWithExercises(planId, req.userId);
     res.status(201).json(result);
   } catch {
     res.status(500).json({ error: "Failed to create plan" });
@@ -115,7 +116,7 @@ router.post("/plans", async (req, res) => {
 
 router.get("/plans/:id", async (req, res) => {
   try {
-    const plan = await getPlanWithExercises(req.params.id!);
+    const plan = await getPlanWithExercises(req.params.id!, req.userId);
     if (!plan) {
       res.status(404).json({ error: "Plan not found" });
       return;
@@ -139,7 +140,7 @@ router.put("/plans/:id", async (req, res) => {
   try {
     const updated = await db.transaction(async (tx) => {
       const existing = await tx.query.plans.findFirst({
-        where: eq(plans.id, planId),
+        where: and(eq(plans.id, planId), eq(plans.userId, req.userId)),
       });
       if (!existing) return null;
 
@@ -157,7 +158,7 @@ router.put("/plans/:id", async (req, res) => {
       return;
     }
 
-    const result = await getPlanWithExercises(planId);
+    const result = await getPlanWithExercises(planId, req.userId);
     res.json(result);
   } catch {
     res.status(500).json({ error: "Failed to update plan" });
@@ -167,7 +168,7 @@ router.put("/plans/:id", async (req, res) => {
 router.delete("/plans/:id", async (req, res) => {
   try {
     const existing = await db.query.plans.findFirst({
-      where: eq(plans.id, req.params.id!),
+      where: and(eq(plans.id, req.params.id!), eq(plans.userId, req.userId)),
     });
     if (!existing) {
       res.status(404).json({ error: "Plan not found" });
