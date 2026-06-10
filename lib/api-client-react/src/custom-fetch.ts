@@ -44,6 +44,17 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
 }
 
+let _userId: string | null = null;
+
+/**
+ * Sets the acting user profile. When set, every request carries an
+ * `X-User-Id: <id>` header so the API scopes data to that user.
+ * Pass `null` to clear.
+ */
+export function setUserId(id: string | null): void {
+  _userId = id;
+}
+
 function isRequest(input: RequestInfo | URL): input is Request {
   return typeof Request !== "undefined" && input instanceof Request;
 }
@@ -356,6 +367,11 @@ export async function customFetch<T = unknown>(
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
+  }
+
+  // Attach the acting user profile when one is selected.
+  if (_userId && !headers.has("x-user-id")) {
+    headers.set("x-user-id", _userId);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

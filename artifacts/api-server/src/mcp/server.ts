@@ -17,6 +17,7 @@ import {
   planExercises,
 } from "@workspace/db";
 import { logger } from "../lib/logger.js";
+import { resolveMcpUserId } from "../middlewares/user-context.js";
 
 // ── Transport session state ────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ type VolumeTrendRow = { exercise: string; current_2w: string | null; previous_2w
 
 // ── MCP server (single shared instance) ───────────────────────────────────────
 
-function createMcpServer(): Server {
+function createMcpServer(userId: string): Server {
   const server = new Server(
     { name: "gym-tracker", version: "1.0.0" },
     { capabilities: { tools: {} } },
@@ -405,6 +406,7 @@ function createMcpServer(): Server {
 
           const { limit, after, before } = parsed.data;
           const conditions = [
+            eq(sessions.userId, userId),
             after ? gte(sessions.date, after) : undefined,
             before ? lte(sessions.date, before) : undefined,
           ].filter(Boolean);
@@ -412,7 +414,7 @@ function createMcpServer(): Server {
           const recentSessions = await db.query.sessions.findMany({
             orderBy: [desc(sessions.date)],
             limit,
-            where: conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined,
+            where: and(...(conditions as Parameters<typeof and>)),
             with: {
               sessionExercises: {
                 orderBy: (se, { asc }) => [asc(se.sortOrder)],
@@ -456,7 +458,7 @@ function createMcpServer(): Server {
           }
 
           const session = await db.query.sessions.findFirst({
-            where: eq(sessions.id, parsed.data.session_id),
+            where: and(eq(sessions.id, parsed.data.session_id), eq(sessions.userId, userId)),
             with: {
               sessionExercises: {
                 orderBy: (se, { asc }) => [asc(se.sortOrder)],
@@ -499,6 +501,7 @@ function createMcpServer(): Server {
 
         case "get_plans": {
           const allPlans = await db.query.plans.findMany({
+            where: eq(plans.userId, userId),
             orderBy: (p, { asc }) => [asc(p.name)],
             with: {
               planExercises: { orderBy: (pe, { asc }) => [asc(pe.sortOrder)] },
@@ -535,7 +538,7 @@ function createMcpServer(): Server {
             FROM ${sets} s
             JOIN ${sessionExercises} se ON s.session_exercise_id = se.id
             JOIN ${sessions} sess ON se.session_id = sess.id
-            WHERE s.weight_kg IS NOT NULL
+            WHERE s.weight_kg IS NOT NULL AND sess.user_id = ${userId}
             ORDER BY se.name ASC, s.weight_kg DESC
           `);
 
@@ -572,6 +575,7 @@ function createMcpServer(): Server {
             WHERE
               s.reps IS NOT NULL
               AND s.weight_kg IS NOT NULL
+              AND sess.user_id = ${userId}
               AND sess.date >= (CURRENT_DATE - (${parsed.data.weeks} * INTERVAL '1 week'))
             GROUP BY 1, 2
             ORDER BY 1 ASC, 2 ASC
@@ -613,7 +617,7 @@ function createMcpServer(): Server {
             FROM ${sets} s
             JOIN ${sessionExercises} se ON s.session_exercise_id = se.id
             JOIN ${sessions} sess ON se.session_id = sess.id
-            WHERE se.name ILIKE ${"%" + exercise_name + "%"}
+            WHERE se.name ILIKE ${"%" + exercise_name + "%"} AND sess.user_id = ${userId}
             ORDER BY sess.date DESC, s.set_number ASC
           `);
 
@@ -654,6 +658,7 @@ function createMcpServer(): Server {
         case "get_training_context": {
           const [recentSessions, prRows, overdueRows, trendRows] = await Promise.all([
             db.query.sessions.findMany({
+              where: eq(sessions.userId, userId),
               orderBy: [desc(sessions.date)],
               limit: 3,
               with: {
@@ -672,7 +677,7 @@ function createMcpServer(): Server {
               FROM ${sets} s
               JOIN ${sessionExercises} se ON s.session_exercise_id = se.id
               JOIN ${sessions} sess ON se.session_id = sess.id
-              WHERE s.weight_kg IS NOT NULL
+              WHERE s.weight_kg IS NOT NULL AND sess.user_id = ${userId}
               ORDER BY se.name ASC, s.weight_kg DESC
             `),
             db.execute<OverdueRow>(sql`
@@ -680,8 +685,9 @@ function createMcpServer(): Server {
                 pe.name AS exercise,
                 MAX(sess.date) AS last_date
               FROM ${planExercises} pe
+              JOIN ${plans} p ON pe.plan_id = p.id AND p.user_id = ${userId}
               LEFT JOIN ${sessionExercises} se ON se.name ILIKE pe.name
-              LEFT JOIN ${sessions} sess ON se.session_id = sess.id
+              LEFT JOIN ${sessions} sess ON se.session_id = sess.id AND sess.user_id = ${userId}
               GROUP BY pe.name
               HAVING MAX(sess.date) IS NULL OR MAX(sess.date) < CURRENT_DATE - INTERVAL '14 days'
             `),
@@ -694,6 +700,7 @@ function createMcpServer(): Server {
               JOIN ${sessionExercises} se ON s.session_exercise_id = se.id
               JOIN ${sessions} sess ON se.session_id = sess.id
               WHERE s.reps IS NOT NULL AND s.weight_kg IS NOT NULL
+                AND sess.user_id = ${userId}
                 AND sess.date >= CURRENT_DATE - INTERVAL '28 days'
               GROUP BY se.name
               ORDER BY se.name ASC
@@ -760,7 +767,7 @@ function createMcpServer(): Server {
           const planId = await db.transaction(async (tx) => {
             const [plan] = await tx
               .insert(plans)
-              .values({ name, notes: notes ?? null })
+              .values({ name, notes: notes ?? null, userId })
               .returning({ id: plans.id });
 
             if (exercises.length > 0) {
@@ -799,7 +806,9 @@ function createMcpServer(): Server {
           const { plan_id, name, notes, exercises } = parsed.data;
 
           const updated = await db.transaction(async (tx) => {
-            const existing = await tx.query.plans.findFirst({ where: eq(plans.id, plan_id) });
+            const existing = await tx.query.plans.findFirst({
+              where: and(eq(plans.id, plan_id), eq(plans.userId, userId)),
+            });
             if (!existing) return false;
 
             await tx.update(plans).set({ name, notes: notes ?? null }).where(eq(plans.id, plan_id));
@@ -845,7 +854,9 @@ function createMcpServer(): Server {
             };
           }
 
-          const existing = await db.query.plans.findFirst({ where: eq(plans.id, parsed.data.plan_id) });
+          const existing = await db.query.plans.findFirst({
+            where: and(eq(plans.id, parsed.data.plan_id), eq(plans.userId, userId)),
+          });
           if (!existing) {
             return {
               content: [{ type: "text", text: `Error: Plan "${parsed.data.plan_id}" not found` }],
@@ -876,7 +887,7 @@ function createMcpServer(): Server {
           const sessionId = await db.transaction(async (tx) => {
             const [session] = await tx
               .insert(sessions)
-              .values({ date, name, notes: notes ?? null, durationMin: duration_min ?? null })
+              .values({ userId, date, name, notes: notes ?? null, durationMin: duration_min ?? null })
               .returning({ id: sessions.id });
 
             for (let i = 0; i < exercises.length; i++) {
@@ -924,7 +935,7 @@ function createMcpServer(): Server {
           const { session_id, name: newName, date, notes, duration_min } = parsed.data;
 
           const existing = await db.query.sessions.findFirst({
-            where: eq(sessions.id, session_id),
+            where: and(eq(sessions.id, session_id), eq(sessions.userId, userId)),
           });
           if (!existing) {
             return {
@@ -965,7 +976,7 @@ function createMcpServer(): Server {
           }
 
           const existing = await db.query.sessions.findFirst({
-            where: eq(sessions.id, parsed.data.session_id),
+            where: and(eq(sessions.id, parsed.data.session_id), eq(sessions.userId, userId)),
           });
 
           if (!existing) {
@@ -1031,6 +1042,13 @@ export function setupMcpRoutes(app: Express): void {
         return;
       }
 
+      // Resolve acting user from ?user=<id or name>; defaults to the first user
+      const userId = await resolveMcpUserId(req.query["user"] as string | undefined);
+      if (!userId) {
+        res.status(403).json({ error: "Unknown user — pass ?user=<user id or name>" });
+        return;
+      }
+
       const newSessionId = randomUUID();
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => newSessionId,
@@ -1044,11 +1062,11 @@ export function setupMcpRoutes(app: Express): void {
 
       transports.set(newSessionId, transport);
       sessionExpiry.set(newSessionId, Date.now() + SESSION_TTL_MS);
-      logger.info({ sessionId: newSessionId }, "MCP session opened");
+      logger.info({ sessionId: newSessionId, userId }, "MCP session opened");
 
       // A fresh Server instance is required per connection — the MCP SDK
       // forbids connecting a single Server to more than one transport.
-      const mcpServer = createMcpServer();
+      const mcpServer = createMcpServer(userId);
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {

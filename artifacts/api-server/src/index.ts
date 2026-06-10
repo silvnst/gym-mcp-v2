@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureUsersBootstrap } from "./middlewares/user-context";
 
 // Railway (and most PaaS hosts) inject PORT; fall back to 8080 for local dev.
 const port = Number(process.env["PORT"] ?? 8080);
@@ -14,11 +15,20 @@ if (process.env["NODE_ENV"] === "production" && !process.env["MCP_SECRET"]) {
   );
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+async function main() {
+  await ensureUsersBootstrap();
 
-  logger.info({ port }, "Server listening");
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
+
+    logger.info({ port }, "Server listening");
+  });
+}
+
+main().catch((err) => {
+  logger.error({ err }, "Failed to start server");
+  process.exit(1);
 });

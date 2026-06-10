@@ -18,6 +18,43 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary List all user profiles
+ */
+export const ListUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListUsersResponse = zod.array(ListUsersResponseItem)
+
+
+/**
+ * @summary Create a user profile
+ */
+export const CreateUserBody = zod.object({
+  "name": zod.string()
+})
+
+
+/**
+ * @summary Rename a user profile
+ */
+export const UpdateUserParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateUserBody = zod.object({
+  "name": zod.string()
+})
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary List all plans
  */
 export const ListPlansResponseItem = zod.object({

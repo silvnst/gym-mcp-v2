@@ -17,6 +17,16 @@ export interface SuccessResponse {
   success: boolean;
 }
 
+export interface UserRecord {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface CreateUserBody {
+  name: string;
+}
+
 export interface PlanExerciseRecord {
   id: string;
   planId: string;
