@@ -102,7 +102,16 @@ const logSessionArgsSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
   name: z.string().min(1),
   notes: z.string().nullable().optional(),
+  duration_min: z.number().int().min(0).max(24 * 60).nullable().optional(),
   exercises: z.array(logSessionExerciseSchema).min(1),
+});
+
+const updateSessionArgsSchema = z.object({
+  session_id: z.string().min(1),
+  name: z.string().min(1).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD").optional(),
+  notes: z.string().nullable().optional(),
+  duration_min: z.number().int().min(0).max(24 * 60).nullable().optional(),
 });
 
 const deleteSessionArgsSchema = z.object({
@@ -315,6 +324,10 @@ function createMcpServer(): Server {
               type: "string",
               description: "Optional free-text notes for the session.",
             },
+            duration_min: {
+              type: "number",
+              description: "Optional workout duration in minutes.",
+            },
             exercises: {
               type: "array",
               description: "Ordered list of exercises performed.",
@@ -339,6 +352,23 @@ function createMcpServer(): Server {
             },
           },
           required: ["date", "name", "exercises"],
+        },
+      },
+      {
+        name: "update_session",
+        description:
+          "Updates metadata of an existing session: name, date, notes, and/or duration in minutes. Only the provided fields are changed.",
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+        inputSchema: {
+          type: "object",
+          properties: {
+            session_id: { type: "string", description: "The session ID to update." },
+            name: { type: "string", description: "New session name." },
+            date: { type: "string", description: "New session date (YYYY-MM-DD)." },
+            notes: { type: "string", description: "New session notes (replaces existing)." },
+            duration_min: { type: "number", description: "Workout duration in minutes." },
+          },
+          required: ["session_id"],
         },
       },
       {
@@ -396,6 +426,7 @@ function createMcpServer(): Server {
             date: session.date,
             name: session.name,
             notes: session.notes,
+            durationMin: session.durationMin,
             exercises: session.sessionExercises.map((se) => ({
               name: se.name,
               targetSets: se.targetSets,
@@ -446,6 +477,7 @@ function createMcpServer(): Server {
             date: session.date,
             name: session.name,
             notes: session.notes,
+            durationMin: session.durationMin,
             exercises: session.sessionExercises.map((se) => ({
               name: se.name,
               targetSets: se.targetSets,
@@ -581,10 +613,11 @@ function createMcpServer(): Server {
             FROM ${sets} s
             JOIN ${sessionExercises} se ON s.session_exercise_id = se.id
             JOIN ${sessions} sess ON se.session_id = sess.id
-            WHERE se.name ILIKE ${"%%" + exercise_name + "%%"}
+            WHERE se.name ILIKE ${"%" + exercise_name + "%"}
             ORDER BY sess.date DESC, s.set_number ASC
           `);
 
+          // Group flat rows into sessions
           const sessionMap = new Map<string, {
             date: string;
             session_name: string;
@@ -673,6 +706,7 @@ function createMcpServer(): Server {
               date: session.date,
               name: session.name,
               notes: session.notes,
+              durationMin: session.durationMin,
               exercises: session.sessionExercises.map((se) => ({
                 name: se.name,
                 targetSets: se.targetSets,
@@ -837,12 +871,12 @@ function createMcpServer(): Server {
             };
           }
 
-          const { date, name, notes, exercises } = parsed.data;
+          const { date, name, notes, duration_min, exercises } = parsed.data;
 
           const sessionId = await db.transaction(async (tx) => {
             const [session] = await tx
               .insert(sessions)
-              .values({ date, name, notes: notes ?? null })
+              .values({ date, name, notes: notes ?? null, durationMin: duration_min ?? null })
               .returning({ id: sessions.id });
 
             for (let i = 0; i < exercises.length; i++) {
@@ -872,6 +906,49 @@ function createMcpServer(): Server {
           });
 
           const result = { success: true, session_id: sessionId };
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            structuredContent: result,
+          };
+        }
+
+        case "update_session": {
+          const parsed = updateSessionArgsSchema.safeParse(args ?? {});
+          if (!parsed.success) {
+            return {
+              content: [{ type: "text", text: `Error: invalid arguments — ${parsed.error.message}` }],
+              isError: true,
+            };
+          }
+
+          const { session_id, name: newName, date, notes, duration_min } = parsed.data;
+
+          const existing = await db.query.sessions.findFirst({
+            where: eq(sessions.id, session_id),
+          });
+          if (!existing) {
+            return {
+              content: [{ type: "text", text: `Error: Session "${session_id}" not found` }],
+              isError: true,
+            };
+          }
+
+          const updates: Partial<{
+            name: string;
+            date: string;
+            notes: string | null;
+            durationMin: number | null;
+          }> = {};
+          if (newName !== undefined) updates.name = newName;
+          if (date !== undefined) updates.date = date;
+          if (notes !== undefined) updates.notes = notes;
+          if (duration_min !== undefined) updates.durationMin = duration_min;
+
+          if (Object.keys(updates).length > 0) {
+            await db.update(sessions).set(updates).where(eq(sessions.id, session_id));
+          }
+
+          const result = { success: true, session_id };
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,
@@ -933,6 +1010,7 @@ function createMcpServer(): Server {
 // ── Route setup ────────────────────────────────────────────────────────────────
 
 export function setupMcpRoutes(app: Express): void {
+  // Single endpoint handles POST (new session or message), GET (SSE stream), DELETE (close session)
   app.all("/mcp", async (req, res) => {
     try {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
@@ -947,6 +1025,7 @@ export function setupMcpRoutes(app: Express): void {
         return;
       }
 
+      // No session ID → new session, only POST is valid for initialization
       if (req.method !== "POST") {
         res.status(400).json({ error: "Send POST to /mcp to start a new session" });
         return;
@@ -967,6 +1046,8 @@ export function setupMcpRoutes(app: Express): void {
       sessionExpiry.set(newSessionId, Date.now() + SESSION_TTL_MS);
       logger.info({ sessionId: newSessionId }, "MCP session opened");
 
+      // A fresh Server instance is required per connection — the MCP SDK
+      // forbids connecting a single Server to more than one transport.
       const mcpServer = createMcpServer();
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, req.body);

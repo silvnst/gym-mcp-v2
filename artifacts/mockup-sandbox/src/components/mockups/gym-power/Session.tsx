@@ -80,6 +80,37 @@ export function Session() {
           </div>
         </div>
 
+        {/* Exercise 2 */}
+        <div>
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-white mb-2">2. Incline DB Press</h3>
+            <div className="inline-flex items-center px-3 py-1 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-zinc-400 font-medium">
+              Target: <span className="text-white ml-1">3×10 @ 32kg</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-[3rem_1fr_1fr_3rem] gap-2 px-2 pb-2 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-[#27272a]">
+              <div className="text-center">Set</div>
+              <div className="text-center">kg</div>
+              <div className="text-center">Reps</div>
+              <div className="text-center"></div>
+            </div>
+
+            {/* Set 1: Empty */}
+            <div className="grid grid-cols-[3rem_1fr_1fr_3rem] gap-2 items-center bg-[#18181b] border border-[#27272a] rounded-xl p-1">
+              <div className="h-11 flex items-center justify-center power-dark-num text-zinc-500 font-bold">1</div>
+              <input type="text" inputMode="decimal" placeholder="32" className="h-11 bg-[#27272a]/50 rounded-lg text-center power-dark-num text-xl text-white font-bold outline-none placeholder:text-zinc-600 focus:bg-[#27272a]" />
+              <input type="text" inputMode="numeric" placeholder="10" className="h-11 bg-[#27272a]/50 rounded-lg text-center power-dark-num text-xl text-white font-bold outline-none placeholder:text-zinc-600 focus:bg-[#27272a]" />
+              <button className="h-11 flex items-center justify-center text-[#27272a]">
+                <div className="w-7 h-7 rounded bg-[#27272a] flex items-center justify-center text-white/50">
+                  <Check size={18} strokeWidth={3} />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <button className="h-14 w-full bg-[#18181b] border border-[#27272a] text-[#ccff00] font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2">
           <Plus size={20} /> Add Exercise
         </button>

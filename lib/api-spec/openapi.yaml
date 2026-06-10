@@ -219,6 +219,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Update session metadata (name, date, notes, duration)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionBody"
+      responses:
+        "200":
+          description: Updated session detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionWithDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteSession
       tags: [sessions]
@@ -280,6 +315,76 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /sessions/{id}/exercises/{exerciseId}:
+    patch:
+      operationId: updateSessionExercise
+      tags: [sessions]
+      summary: Update an exercise within a session (rename, reorder)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionExerciseBody"
+      responses:
+        "200":
+          description: Updated session exercise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionExerciseWithSets"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSessionExercise
+      tags: [sessions]
+      summary: Delete an exercise (and its sets) from a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /sessions/{id}/sets:
     post:
       operationId: addSet
@@ -312,6 +417,60 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /exercises/top:
+    get:
+      operationId: getTopExercises
+      tags: [sessions]
+      summary: Get top exercises by session count
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Top exercises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopExercise"
+
+  /progress/{exerciseName}:
+    get:
+      operationId: getExerciseProgress
+      tags: [sessions]
+      summary: Get progress data for an exercise
+      parameters:
+        - name: exerciseName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: metric
+          in: query
+          schema:
+            type: string
+            enum: [maxWeight, totalVolume]
+            default: maxWeight
+      responses:
+        "200":
+          description: Progress data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgressDataPoint"
+        "400":
+          description: Bad request
           content:
             application/json:
               schema:
@@ -502,6 +661,12 @@ components:
         weightKg:
           type: number
           nullable: true
+        lastReps:
+          type: integer
+          nullable: true
+        lastWeightKg:
+          type: number
+          nullable: true
       required:
         - id
         - sessionExerciseId
@@ -530,6 +695,9 @@ components:
         targetWeightKg:
           type: number
           nullable: true
+        notes:
+          type: string
+          nullable: true
         sets:
           type: array
           items:
@@ -556,13 +724,25 @@ components:
         notes:
           type: string
           nullable: true
+        durationMin:
+          type: integer
+          nullable: true
         createdAt:
           type: string
+        exerciseCount:
+          type: integer
+        setCount:
+          type: integer
+        totalVolumeKg:
+          type: number
       required:
         - id
         - date
         - name
         - createdAt
+        - exerciseCount
+        - setCount
+        - totalVolumeKg
 
     SessionWithDetail:
       type: object
@@ -578,6 +758,9 @@ components:
           type: string
         notes:
           type: string
+          nullable: true
+        durationMin:
+          type: integer
           nullable: true
         createdAt:
           type: string
@@ -628,6 +811,9 @@ components:
         notes:
           type: string
           nullable: true
+        durationMin:
+          type: integer
+          nullable: true
         exercises:
           type: array
           nullable: true
@@ -653,6 +839,50 @@ components:
       required:
         - sessionExerciseId
         - setNumber
+
+    TopExercise:
+      type: object
+      properties:
+        name:
+          type: string
+        sessionCount:
+          type: integer
+      required:
+        - name
+        - sessionCount
+
+    ProgressDataPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        value:
+          type: number
+      required:
+        - date
+        - value
+
+    UpdateSessionBody:
+      type: object
+      properties:
+        name:
+          type: string
+        date:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        durationMin:
+          type: integer
+          nullable: true
+
+    UpdateSessionExerciseBody:
+      type: object
+      properties:
+        name:
+          type: string
+        sortOrder:
+          type: integer
 
     UpdateSetBody:
       type: object

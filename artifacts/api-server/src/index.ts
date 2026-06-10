@@ -1,26 +1,17 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-if (!process.env["MCP_CLIENT_ID"]) {
-  throw new Error("MCP_CLIENT_ID is required but was not set.");
-}
-
-if (!process.env["MCP_CLIENT_SECRET"]) {
-  throw new Error("MCP_CLIENT_SECRET secret is required but was not set.");
-}
-
-const port = Number(rawPort);
+// Railway (and most PaaS hosts) inject PORT; fall back to 8080 for local dev.
+const port = Number(process.env["PORT"] ?? 8080);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  throw new Error(`Invalid PORT value: "${process.env["PORT"]}"`);
+}
+
+if (process.env["NODE_ENV"] === "production" && !process.env["MCP_SECRET"]) {
+  logger.warn(
+    "MCP_SECRET is not set — the /mcp endpoint is unprotected. Set the MCP_SECRET environment variable in production.",
+  );
 }
 
 app.listen(port, (err) => {
