@@ -18,6 +18,16 @@ import {
 } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import { resolveMcpUserId } from "../middlewares/user-context.js";
+import {
+  addDays,
+  garminConfigured,
+  garminUserId,
+  getGarminActivities,
+  getGarminDays,
+  getReadiness,
+  localDate,
+  syncGarmin,
+} from "../lib/garmin.js";
 
 // ── Transport session state ────────────────────────────────────────────────────
 
@@ -234,6 +244,46 @@ function createMcpServer(userId: string): Server {
           "Returns a full training snapshot in one call: last 3 sessions with exercises and sets, all personal records, exercises overdue for 14+ days (from plans), and per-exercise volume trend (last 2 weeks vs prior 2 weeks). Use this as the first call when the user wants training insights or recommendations.",
         annotations: { readOnlyHint: true },
         inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "get_garmin_days",
+        description:
+          "Returns daily Garmin wellness data for a date range, newest first: resting heart rate (bpm), overnight HRV (ms) with weekly average, personal baseline range and status, sleep duration (seconds) and sleep score, Body Battery high/low, average stress and steps. Data comes from the user's watch via the Garmin Personal API and is synced every 2 hours.",
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+          type: "object",
+          properties: {
+            from: { type: "string", description: "First date, YYYY-MM-DD. Default: 14 days ago." },
+            to: { type: "string", description: "Last date, YYYY-MM-DD. Default: today." },
+          },
+        },
+      },
+      {
+        name: "get_garmin_activities",
+        description:
+          "Returns activities recorded on the Garmin watch (runs, rides, hikes, strength …) in the last N days, newest first: name, type, start time, duration (s), distance (m), average and max heart rate, calories, Garmin training load and aerobic/anaerobic training effect.",
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+          type: "object",
+          properties: { days: { type: "number", description: "How many days back. Default 14, max 365." } },
+        },
+      },
+      {
+        name: "get_readiness",
+        description:
+          "Returns today's recovery check from Garmin data with the reasons behind it: ready, caution or easy, based on overnight HRV against the personal baseline, resting heart rate against the 4-week average, and sleep. Also lists yesterday's watch activities.",
+        annotations: { readOnlyHint: true },
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "sync_garmin",
+        description:
+          "Pulls the latest data from Garmin now (normally automatic every 2 hours). Optionally pass days to backfill further.",
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+        inputSchema: {
+          type: "object",
+          properties: { days: { type: "number", description: "How many days back to sync. Default 4 (90 on first sync), max 365." } },
+        },
       },
       // ── Write tools ───────────────────────────────────────────────────────
       {
@@ -1011,6 +1061,41 @@ function createMcpServer(userId: string): Server {
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,
+          };
+        }
+
+        case "get_garmin_days":
+        case "get_garmin_activities":
+        case "get_readiness":
+        case "sync_garmin": {
+          if (!garminConfigured() || garminUserId() !== userId) {
+            return {
+              content: [{ type: "text", text: "Garmin is not connected to this profile. Set GARMIN_API_KEY on the server (it links to the default profile, or to GARMIN_USER_ID)." }],
+              isError: true,
+            };
+          }
+          const a = (args ?? {}) as Record<string, unknown>;
+          const dateArg = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+          let result: unknown;
+          if (name === "get_garmin_days") {
+            const to = dateArg(a["to"]) ?? localDate();
+            const from = dateArg(a["from"]) ?? addDays(to, -13);
+            const rows = await getGarminDays(userId, from, to);
+            result = rows.map(({ raw: _raw, id: _id, userId: _u, ...r }) => r);
+          } else if (name === "get_garmin_activities") {
+            const days = Math.min(Math.max(Number(a["days"] ?? 14) || 14, 1), 365);
+            const to = localDate();
+            const rows = await getGarminActivities(userId, addDays(to, -(days - 1)), to);
+            result = rows.map(({ raw: _raw, id: _id, userId: _u, ...r }) => r);
+          } else if (name === "get_readiness") {
+            result = (await getReadiness(userId)) ?? { available: false, note: "No Garmin data stored yet. Try sync_garmin." };
+          } else {
+            const days = typeof a["days"] === "number" ? a["days"] : undefined;
+            result = await syncGarmin(days);
+          }
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            structuredContent: { data: result },
           };
         }
 

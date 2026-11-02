@@ -490,6 +490,99 @@ export const GetMuscleSetsResponse = zod.object({
 
 
 /**
+ * @summary Whether Garmin is connected to this profile and how the last sync went
+ */
+export const GetGarminStatusResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Pull the latest data from Garmin now
+ */
+export const SyncGarminBody = zod.object({
+  "days": zod.number().optional().describe('How many days back to sync (default 4, or 90 the first time)')
+})
+
+export const SyncGarminResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Recovery check from last night's sleep, HRV and resting heart rate
+ */
+export const GetReadinessResponse = zod.object({
+  "available": zod.boolean(),
+  "date": zod.string().optional(),
+  "level": zod.enum(['ready', 'caution', 'easy']).optional(),
+  "headline": zod.string().optional(),
+  "reasons": zod.array(zod.string()).optional(),
+  "metrics": zod.object({
+  "sleepSeconds": zod.number().nullish(),
+  "sleepScore": zod.number().nullish(),
+  "hrvLastNight": zod.number().nullish(),
+  "hrvBaselineLow": zod.number().nullish(),
+  "hrvBaselineHigh": zod.number().nullish(),
+  "hrvStatus": zod.string().nullish(),
+  "restingHr": zod.number().nullish(),
+  "restingHrAvg": zod.number().nullish(),
+  "bodyBatteryHigh": zod.number().nullish()
+}).optional(),
+  "yesterdayActivities": zod.array(zod.object({
+  "name": zod.string().nullish(),
+  "type": zod.string().nullish(),
+  "durationSeconds": zod.number().nullish(),
+  "distanceMeters": zod.number().nullish(),
+  "trainingLoad": zod.number().nullish()
+})).optional()
+})
+
+
+/**
+ * @summary Activities recorded on the watch in the last N days
+ */
+export const listGarminActivitiesQueryDaysDefault = 14;
+
+export const ListGarminActivitiesQueryParams = zod.object({
+  "days": zod.coerce.number().default(listGarminActivitiesQueryDaysDefault)
+})
+
+export const ListGarminActivitiesResponseItem = zod.object({
+  "id": zod.string(),
+  "date": zod.string(),
+  "startTimeLocal": zod.string(),
+  "name": zod.string().nullish(),
+  "type": zod.string().nullish(),
+  "durationSeconds": zod.number().nullish(),
+  "distanceMeters": zod.number().nullish(),
+  "avgHr": zod.number().nullish(),
+  "trainingLoad": zod.number().nullish()
+})
+export const ListGarminActivitiesResponse = zod.array(ListGarminActivitiesResponseItem)
+
+
+/**
  * @summary Update a set
  */
 export const UpdateSetParams = zod.object({

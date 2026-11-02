@@ -19,6 +19,8 @@ tags:
     description: Set operations
   - name: insights
     description: Training analysis
+  - name: garmin
+    description: Garmin Connect data
 
 paths:
   /healthz:
@@ -589,6 +591,82 @@ paths:
               schema:
                 $ref: "#/components/schemas/MuscleSets"
 
+  /garmin/status:
+    get:
+      operationId: getGarminStatus
+      tags: [garmin]
+      summary: Whether Garmin is connected to this profile and how the last sync went
+      responses:
+        "200":
+          description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GarminStatus"
+
+  /garmin/sync:
+    post:
+      operationId: syncGarmin
+      tags: [garmin]
+      summary: Pull the latest data from Garmin now
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days:
+                  type: integer
+                  description: How many days back to sync (default 4, or 90 the first time)
+      responses:
+        "200":
+          description: Sync status after the run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GarminStatus"
+        "404":
+          description: Garmin is not connected to this profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /garmin/readiness:
+    get:
+      operationId: getReadiness
+      tags: [garmin]
+      summary: Recovery check from last night's sleep, HRV and resting heart rate
+      responses:
+        "200":
+          description: Readiness, or available false without Garmin data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+
+  /garmin/activities:
+    get:
+      operationId: listGarminActivities
+      tags: [garmin]
+      summary: Activities recorded on the watch in the last N days
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 14
+      responses:
+        "200":
+          description: Activities, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GarminActivity"
+
   /sets/{id}:
     put:
       operationId: updateSet
@@ -1113,3 +1191,133 @@ components:
         pull:
           type: integer
       required: [days, muscles, push, pull]
+
+    GarminStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        linked:
+          type: boolean
+          description: True when the Garmin key belongs to this profile
+        running:
+          type: boolean
+        lastSyncAt:
+          type: string
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+        lastResult:
+          type: object
+          nullable: true
+          properties:
+            days:
+              type: integer
+            activities:
+              type: integer
+            from:
+              type: string
+            to:
+              type: string
+      required: [configured, linked, running]
+
+    GarminActivityBrief:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        distanceMeters:
+          type: number
+          nullable: true
+        trainingLoad:
+          type: number
+          nullable: true
+
+    Readiness:
+      type: object
+      properties:
+        available:
+          type: boolean
+        date:
+          type: string
+        level:
+          type: string
+          enum: [ready, caution, easy]
+        headline:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: object
+          properties:
+            sleepSeconds:
+              type: integer
+              nullable: true
+            sleepScore:
+              type: integer
+              nullable: true
+            hrvLastNight:
+              type: integer
+              nullable: true
+            hrvBaselineLow:
+              type: integer
+              nullable: true
+            hrvBaselineHigh:
+              type: integer
+              nullable: true
+            hrvStatus:
+              type: string
+              nullable: true
+            restingHr:
+              type: integer
+              nullable: true
+            restingHrAvg:
+              type: integer
+              nullable: true
+            bodyBatteryHigh:
+              type: integer
+              nullable: true
+        yesterdayActivities:
+          type: array
+          items:
+            $ref: "#/components/schemas/GarminActivityBrief"
+      required: [available]
+
+    GarminActivity:
+      type: object
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+        startTimeLocal:
+          type: string
+        name:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        distanceMeters:
+          type: number
+          nullable: true
+        avgHr:
+          type: integer
+          nullable: true
+        trainingLoad:
+          type: number
+          nullable: true
+      required: [id, date, startTimeLocal]

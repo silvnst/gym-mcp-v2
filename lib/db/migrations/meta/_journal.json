@@ -15,6 +15,13 @@
       "when": 1793658049197,
       "tag": "0001_supersets_equipment_effort",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793658652507,
+      "tag": "0002_garmin",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import { ProfileSheet } from "@/components/layout";
 import { BpButton, Card, Notice, PageTitle, SectionLabel, StatTile } from "@/components/bumper";
 import { cleanName, daysBetween, formatKg, groupBySuperset } from "@/lib/training";
 import { useStartWorkout } from "@/lib/start-workout";
+import { ReadinessCard } from "@/components/readiness";
 import { cn } from "@/lib/utils";
 
 const COMEBACK_DAYS = 14;
@@ -71,6 +72,8 @@ export default function TodayPage() {
       >
         Today
       </PageTitle>
+
+      <ReadinessCard />
 
       {daysOff != null && daysOff >= COMEBACK_DAYS && !unfinished && (
         <Notice icon={<Clock className="w-[18px] h-[18px]" aria-hidden="true" />}>

@@ -221,6 +221,74 @@ export interface MuscleSets {
   pull: number;
 }
 
+export type GarminStatusLastResult = {
+  days?: number;
+  activities?: number;
+  from?: string;
+  to?: string;
+} | null;
+
+export interface GarminStatus {
+  configured: boolean;
+  /** True when the Garmin key belongs to this profile */
+  linked: boolean;
+  running: boolean;
+  lastSyncAt?: string | null;
+  lastError?: string | null;
+  lastResult?: GarminStatusLastResult;
+}
+
+export interface GarminActivityBrief {
+  name?: string | null;
+  type?: string | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
+  trainingLoad?: number | null;
+}
+
+export type ReadinessLevel = typeof ReadinessLevel[keyof typeof ReadinessLevel];
+
+
+export const ReadinessLevel = {
+  ready: 'ready',
+  caution: 'caution',
+  easy: 'easy',
+} as const;
+
+export type ReadinessMetrics = {
+  sleepSeconds?: number | null;
+  sleepScore?: number | null;
+  hrvLastNight?: number | null;
+  hrvBaselineLow?: number | null;
+  hrvBaselineHigh?: number | null;
+  hrvStatus?: string | null;
+  restingHr?: number | null;
+  restingHrAvg?: number | null;
+  bodyBatteryHigh?: number | null;
+};
+
+export interface Readiness {
+  available: boolean;
+  date?: string;
+  level?: ReadinessLevel;
+  headline?: string;
+  reasons?: string[];
+  metrics?: ReadinessMetrics;
+  yesterdayActivities?: GarminActivityBrief[];
+}
+
+export interface GarminActivity {
+  id: string;
+  date: string;
+  startTimeLocal: string;
+  name?: string | null;
+  type?: string | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
+  avgHr?: number | null;
+  trainingLoad?: number | null;
+}
+
 export type ListSessionsParams = {
 limit?: number;
 offset?: number;
@@ -248,6 +316,15 @@ limit?: number;
 };
 
 export type GetMuscleSetsParams = {
+days?: number;
+};
+
+export type SyncGarminBody = {
+  /** How many days back to sync (default 4, or 90 the first time) */
+  days?: number;
+};
+
+export type ListGarminActivitiesParams = {
 days?: number;
 };
 

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { useGetTopExercises, useGetExerciseProgress, useGetMuscleSets } from "@workspace/api-client-react";
+import { useGetTopExercises, useGetExerciseProgress, useGetMuscleSets, useListGarminActivities, useGetGarminStatus } from "@workspace/api-client-react";
+import { activityLabel, formatDuration } from "@/components/readiness";
 import { Card, Chip, PageTitle, SectionLabel } from "@/components/bumper";
 import { formatKg } from "@/lib/training";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export default function ProgressPage() {
       <PageTitle>Progress</PageTitle>
       <StrengthChart />
       <MuscleBalance />
+      <WatchActivities />
     </div>
   );
 }
@@ -159,6 +161,54 @@ function MuscleBalance() {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Everything the watch recorded besides lifting, grouped by type over 4 weeks. */
+function WatchActivities() {
+  const { data: status } = useGetGarminStatus();
+  const { data: activities } = useListGarminActivities({ days: 28 }, { query: { enabled: !!status?.linked, queryKey: ["/api/garmin/activities", 28] } });
+  if (!status?.linked) return null;
+
+  const byType = new Map<string, { count: number; seconds: number; meters: number; load: number }>();
+  for (const a of activities ?? []) {
+    const key = activityLabel(a.type, null);
+    const t = byType.get(key) ?? { count: 0, seconds: 0, meters: 0, load: 0 };
+    t.count++;
+    t.seconds += a.durationSeconds ?? 0;
+    t.meters += a.distanceMeters ?? 0;
+    t.load += a.trainingLoad ?? 0;
+    byType.set(key, t);
+  }
+  const rows = [...byType.entries()].sort((a, b) => b[1].seconds - a[1].seconds);
+
+  return (
+    <section className="space-y-3">
+      <SectionLabel right="last 4 weeks">From your watch</SectionLabel>
+      <Card className="space-y-2.5">
+        {rows.length === 0 ? (
+          <p className="text-sm text-bp-muted">No activities recorded on the watch in the last 4 weeks.</p>
+        ) : (
+          <ul className="divide-y-2 divide-bp-surface-2">
+            {rows.map(([type, t]) => (
+              <li key={type} className="flex justify-between items-baseline gap-3 py-2 first:pt-0 last:pb-0">
+                <span className="min-w-0">
+                  <span className="block font-bold truncate">{type}</span>
+                  <span className="block text-[13px] text-bp-muted">
+                    {t.count} {t.count === 1 ? "time" : "times"}
+                    {t.load > 0 ? `, load ${Math.round(t.load)}` : ""}
+                  </span>
+                </span>
+                <span className="text-right tabular shrink-0">
+                  <span className="block font-bold">{formatDuration(t.seconds)}</span>
+                  {t.meters > 0 && <span className="block text-[13px] text-bp-muted">{(t.meters / 1000).toFixed(1)} km</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </section>
   );
 }

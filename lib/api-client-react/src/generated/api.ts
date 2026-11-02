@@ -27,20 +27,25 @@ import type {
   CreateSetBody,
   CreateUserBody,
   ErrorResponse,
+  GarminActivity,
+  GarminStatus,
   GetBestsParams,
   GetExerciseProgressParams,
   GetMuscleSetsParams,
   GetTopExercisesParams,
   HealthStatus,
+  ListGarminActivitiesParams,
   ListSessionsParams,
   MuscleSets,
   PlanWithExercises,
   ProgressDataPoint,
+  Readiness,
   SessionExerciseWithSets,
   SessionSummary,
   SessionWithDetail,
   SetRecord,
   SuccessResponse,
+  SyncGarminBody,
   TopExercise,
   UpdateSessionBody,
   UpdateSessionExerciseBody,
@@ -1718,6 +1723,315 @@ export function useGetMuscleSets<TData = Awaited<ReturnType<typeof getMuscleSets
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMuscleSetsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetGarminStatusUrl = () => {
+
+
+
+
+  return `/api/garmin/status`
+}
+
+/**
+ * @summary Whether Garmin is connected to this profile and how the last sync went
+ */
+export const getGarminStatus = async ( options?: RequestInit): Promise<GarminStatus> => {
+
+  return customFetch<GarminStatus>(getGetGarminStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGarminStatusQueryKey = () => {
+    return [
+    `/api/garmin/status`
+    ] as const;
+    }
+
+
+export const getGetGarminStatusQueryOptions = <TData = Awaited<ReturnType<typeof getGarminStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGarminStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGarminStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGarminStatus>>> = ({ signal }) => getGarminStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGarminStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGarminStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getGarminStatus>>>
+export type GetGarminStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Whether Garmin is connected to this profile and how the last sync went
+ */
+
+export function useGetGarminStatus<TData = Awaited<ReturnType<typeof getGarminStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGarminStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGarminStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSyncGarminUrl = () => {
+
+
+
+
+  return `/api/garmin/sync`
+}
+
+/**
+ * @summary Pull the latest data from Garmin now
+ */
+export const syncGarmin = async (syncGarminBody?: SyncGarminBody, options?: RequestInit): Promise<GarminStatus> => {
+
+  return customFetch<GarminStatus>(getSyncGarminUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      syncGarminBody,)
+  }
+);}
+
+
+
+
+export const getSyncGarminMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncGarmin>>, TError,{data?: BodyType<SyncGarminBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncGarmin>>, TError,{data?: BodyType<SyncGarminBody>}, TContext> => {
+
+const mutationKey = ['syncGarmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncGarmin>>, {data?: BodyType<SyncGarminBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncGarmin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncGarminMutationResult = NonNullable<Awaited<ReturnType<typeof syncGarmin>>>
+    export type SyncGarminMutationBody = BodyType<SyncGarminBody> | undefined
+    export type SyncGarminMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Pull the latest data from Garmin now
+ */
+export const useSyncGarmin = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncGarmin>>, TError,{data?: BodyType<SyncGarminBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncGarmin>>,
+        TError,
+        {data?: BodyType<SyncGarminBody>},
+        TContext
+      > => {
+      return useMutation(getSyncGarminMutationOptions(options));
+    }
+
+export const getGetReadinessUrl = () => {
+
+
+
+
+  return `/api/garmin/readiness`
+}
+
+/**
+ * @summary Recovery check from last night's sleep, HRV and resting heart rate
+ */
+export const getReadiness = async ( options?: RequestInit): Promise<Readiness> => {
+
+  return customFetch<Readiness>(getGetReadinessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReadinessQueryKey = () => {
+    return [
+    `/api/garmin/readiness`
+    ] as const;
+    }
+
+
+export const getGetReadinessQueryOptions = <TData = Awaited<ReturnType<typeof getReadiness>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReadinessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReadiness>>> = ({ signal }) => getReadiness({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReadiness>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReadinessQueryResult = NonNullable<Awaited<ReturnType<typeof getReadiness>>>
+export type GetReadinessQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Recovery check from last night's sleep, HRV and resting heart rate
+ */
+
+export function useGetReadiness<TData = Awaited<ReturnType<typeof getReadiness>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListGarminActivitiesUrl = (params?: ListGarminActivitiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/garmin/activities?${stringifiedParams}` : `/api/garmin/activities`
+}
+
+/**
+ * @summary Activities recorded on the watch in the last N days
+ */
+export const listGarminActivities = async (params?: ListGarminActivitiesParams, options?: RequestInit): Promise<GarminActivity[]> => {
+
+  return customFetch<GarminActivity[]>(getListGarminActivitiesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGarminActivitiesQueryKey = (params?: ListGarminActivitiesParams,) => {
+    return [
+    `/api/garmin/activities`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGarminActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof listGarminActivities>>, TError = ErrorType<unknown>>(params?: ListGarminActivitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarminActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGarminActivitiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGarminActivities>>> = ({ signal }) => listGarminActivities(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGarminActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGarminActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listGarminActivities>>>
+export type ListGarminActivitiesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Activities recorded on the watch in the last N days
+ */
+
+export function useListGarminActivities<TData = Awaited<ReturnType<typeof listGarminActivities>>, TError = ErrorType<unknown>>(
+ params?: ListGarminActivitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarminActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGarminActivitiesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

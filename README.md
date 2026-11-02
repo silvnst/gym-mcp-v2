@@ -130,4 +130,7 @@ pnpm --filter @workspace/api-spec codegen
 | `DEFAULT_USER_NAME` | `Default` | Name of the auto-created first profile |
 | `FRONTEND_ORIGIN` | `*` | CORS allowed origin |
 | `FRONTEND_DIST` | auto-detected | Override path to the built frontend |
+| `GARMIN_API_KEY` | unset | Garmin Connect Personal API key. When set, the server syncs sleep, HRV, resting heart rate, Body Battery and activities every 2 hours |
+| `GARMIN_USER_ID` | default profile | Profile the Garmin key belongs to |
+| `GARMIN_TIMEZONE` | `Europe/Zurich` | Time zone for "today" in the Garmin sync |
 | `GYM_TRACKER_DEV_URL` | `http://localhost:5173` | Dev-only Vite proxy target |

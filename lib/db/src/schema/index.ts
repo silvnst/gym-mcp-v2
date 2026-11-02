@@ -6,6 +6,10 @@ import {
   timestamp,
   date,
   uuid,
+  jsonb,
+  bigint,
+  real,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -83,6 +87,65 @@ export const sets = pgTable("sets", {
   // How the set felt: easy | right | hard
   effort: text("effort"),
 });
+
+// ── Garmin ────────────────────────────────────────────────────────────────────
+
+/** One row per profile and calendar day, filled from the Garmin Personal API. */
+export const garminDays = pgTable(
+  "garmin_days",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    restingHr: integer("resting_hr"),
+    hrvLastNight: integer("hrv_last_night"),
+    hrvWeeklyAvg: integer("hrv_weekly_avg"),
+    hrvBaselineLow: integer("hrv_baseline_low"),
+    hrvBaselineHigh: integer("hrv_baseline_high"),
+    hrvStatus: text("hrv_status"),
+    sleepSeconds: integer("sleep_seconds"),
+    sleepScore: integer("sleep_score"),
+    bodyBatteryHigh: integer("body_battery_high"),
+    bodyBatteryLow: integer("body_battery_low"),
+    stressAvg: integer("stress_avg"),
+    steps: integer("steps"),
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("garmin_days_user_date").on(t.userId, t.date)],
+);
+
+/** Activities recorded on the watch (runs, rides, strength …). */
+export const garminActivities = pgTable(
+  "garmin_activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    garminId: bigint("garmin_id", { mode: "number" }).notNull(),
+    startTimeLocal: timestamp("start_time_local").notNull(),
+    date: date("date").notNull(),
+    name: text("name"),
+    type: text("type"),
+    durationSeconds: integer("duration_seconds"),
+    distanceMeters: real("distance_meters"),
+    avgHr: integer("avg_hr"),
+    maxHr: integer("max_hr"),
+    calories: integer("calories"),
+    trainingLoad: real("training_load"),
+    aerobicEffect: real("aerobic_effect"),
+    anaerobicEffect: real("anaerobic_effect"),
+    raw: jsonb("raw"),
+    syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("garmin_activities_user_garmin_id").on(t.userId, t.garminId)],
+);
+
+export type GarminDay = typeof garminDays.$inferSelect;
+export type GarminActivity = typeof garminActivities.$inferSelect;
 
 export const plansRelations = relations(plans, ({ many }) => ({
   planExercises: many(planExercises),

@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateUser, getListUsersQueryKey } from "@workspace/api-client-react";
 import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, Check, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useProfile } from "@/lib/profile";
@@ -126,6 +129,8 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
           })}
         </div>
 
+        <RenameProfile key={user.id} id={user.id} name={user.name} />
+
         <NewProfileForm
           onCreated={(created) => {
             switchUser(created.id);
@@ -156,5 +161,45 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function RenameProfile({ id, name }: { id: string; name: string }) {
+  const [value, setValue] = useState(name);
+  const queryClient = useQueryClient();
+  const rename = useUpdateUser({
+    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }) },
+  });
+  const trimmed = value.trim();
+  const changed = trimmed.length > 0 && trimmed !== name;
+
+  return (
+    <form
+      className="flex gap-2 items-end"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (changed) rename.mutate({ id, data: { name: trimmed } });
+      }}
+    >
+      <div className="flex-1 min-w-0">
+        <label htmlFor="rename-profile" className="block text-[13px] font-bold text-bp-muted mb-1.5">
+          Name of this profile
+        </label>
+        <input
+          id="rename-profile"
+          value={value}
+          maxLength={50}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full h-12 px-3 text-[15px] bg-bp-bg border-2 border-bp-outline rounded-[10px] text-bp-ink"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={!changed || rename.isPending}
+        className="h-12 px-4 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand font-bold disabled:opacity-40"
+      >
+        {rename.isPending ? "Saving" : rename.isSuccess && !changed ? "Saved" : "Rename"}
+      </button>
+    </form>
   );
 }
