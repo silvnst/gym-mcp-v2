@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNowStrict, parseISO, isToday, isYesterday, format } from "date-fns";
+import { formatDistanceToNowStrict, parseISO, isToday, isYesterday, format, differenceInCalendarDays } from "date-fns";
 import { RefreshCw, Moon, Activity, HeartPulse } from "lucide-react";
 import {
   useGetReadiness,
@@ -90,6 +90,21 @@ export function ReadinessCard() {
         <div className="flex-1 min-w-0">
           <p className="font-bold">Garmin connected</p>
           <p className="text-[13px] text-bp-muted">{status.lastError && !syncing ? "The last sync didn't work. Try again in a moment." : syncing ? "Fetching your data" : "No sleep or heart data yet."}</p>
+        </div>
+        {refresh}
+      </Card>
+    );
+  }
+
+  // Older than yesterday's night: don't turn stale numbers into advice for today
+  if (r.date && differenceInCalendarDays(new Date(), parseISO(r.date)) > 1) {
+    return (
+      <Card className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="font-bold">No recovery check today</p>
+          <p className="text-[13px] text-bp-muted">
+            The latest watch data is from {format(parseISO(r.date), "d MMMM")}. Open the Garmin Connect app to sync your watch, then refresh here.
+          </p>
         </div>
         {refresh}
       </Card>
