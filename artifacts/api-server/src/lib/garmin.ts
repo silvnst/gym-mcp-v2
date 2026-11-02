@@ -210,6 +210,33 @@ function shape(payload: unknown): string {
 
 const round = (n: number | null) => (n == null ? null : Math.round(n));
 
+/** Number at an exact nested path, e.g. at(o, "heartRate", "restingValue"). */
+function at(o: unknown, ...path: string[]): number | null {
+  let v: unknown = o;
+  for (const k of path) {
+    if (!isObj(v)) return null;
+    v = v[k];
+  }
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Edwards TRIMP: minutes in heart-rate zones 1 to 5, weighted 1 to 5. A simple,
+ * widely used training-load measure; Garmin's own load isn't in this API.
+ */
+function edwardsTrimp(a: Obj): number | null {
+  let total = 0;
+  let any = false;
+  for (let z = 1; z <= 5; z++) {
+    const s = a[`hrTimeInZone_${z}`];
+    if (typeof s === "number" && s > 0) {
+      total += (s / 60) * z;
+      any = true;
+    }
+  }
+  return any ? Math.round(total) : null;
+}
+
 /* ── Dates ───────────────────────────────────────────────────────────────── */
 
 export function localDate(d = new Date()): string {
@@ -298,11 +325,13 @@ async function syncRange(userId: string, from: string, to: string) {
 
     for (const [d, o] of byDate(summaries)) {
       const r = day(d);
-      r.restingHr = round(findNum(o, ["restingHeartRate", "restingHeartRateInBeatsPerMinute", "currentDayRestingHeartRate"]));
-      r.bodyBatteryHigh = round(findNum(o, ["bodyBatteryHighestValue", "bodyBatteryHigh", "maxBodyBattery"]));
-      r.bodyBatteryLow = round(findNum(o, ["bodyBatteryLowestValue", "bodyBatteryLow", "minBodyBattery"]));
-      r.stressAvg = round(findNum(o, ["averageStressLevel", "avgStressLevel", "averageStress"]));
-      r.steps = round(findNum(o, ["totalSteps", "steps"]));
+      // v2 daily summaries nest values: heartRate.restingValue, bodyBattery.maxValue, stress.avgLevel, movement.steps.value
+      r.restingHr = round(at(o, "heartRate", "restingValue") ?? findNum(o, ["restingHeartRate", "restingHeartRateInBeatsPerMinute"]));
+      r.bodyBatteryHigh = round(at(o, "bodyBattery", "maxValue") ?? findNum(o, ["bodyBatteryHighestValue"]));
+      r.bodyBatteryLow = round(at(o, "bodyBattery", "minValue") ?? findNum(o, ["bodyBatteryLowestValue"]));
+      const stress = at(o, "stress", "avgLevel") ?? findNum(o, ["averageStressLevel"]);
+      r.stressAvg = stress != null && stress >= 0 ? round(stress) : null; // Garmin uses -1 for "not enough data"
+      r.steps = round(at(o, "movement", "steps", "value") ?? findNum(o, ["totalSteps"]));
       r.raw!["summary"] = o;
     }
     for (const [d, o] of byDate(sleep)) {
@@ -359,7 +388,7 @@ async function syncRange(userId: string, from: string, to: string) {
         avgHr: round(findNum(a, ["averageHR", "avgHr", "averageHeartRate"])),
         maxHr: round(findNum(a, ["maxHR", "maxHr", "maxHeartRate"])),
         calories: round(findNum(a, ["calories"])),
-        trainingLoad: findNum(a, ["activityTrainingLoad", "trainingLoad"]),
+        trainingLoad: findNum(a, ["activityTrainingLoad", "trainingLoad"]) ?? edwardsTrimp(a),
         aerobicEffect: findNum(a, ["aerobicTrainingEffect"]),
         anaerobicEffect: findNum(a, ["anaerobicTrainingEffect"]),
         raw: a,
@@ -424,6 +453,8 @@ async function syncRange(userId: string, from: string, to: string) {
       .onConflictDoUpdate({
         target: [garminActivities.userId, garminActivities.garminId],
         set: {
+          startTimeLocal: sql`excluded.start_time_local`,
+          date: sql`excluded.date`,
           name: sql`excluded.name`,
           type: sql`excluded.type`,
           durationSeconds: sql`excluded.duration_seconds`,

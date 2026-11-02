@@ -261,7 +261,7 @@ function createMcpServer(userId: string): Server {
       {
         name: "get_garmin_activities",
         description:
-          "Returns activities recorded on the Garmin watch (runs, rides, hikes, strength …) in the last N days, newest first: name, type, start time, duration (s), distance (m), average and max heart rate, calories, Garmin training load and aerobic/anaerobic training effect.",
+          "Returns activities recorded on the Garmin watch (runs, rides, hikes, strength …) in the last N days, newest first: name, type, start time, duration (s), distance (m), average and max heart rate, calories, training load (Garmin's when available, else Edwards TRIMP from heart-rate zones: zone minutes × zone number) and aerobic/anaerobic training effect.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
