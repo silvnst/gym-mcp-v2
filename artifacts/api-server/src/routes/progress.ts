@@ -40,7 +40,23 @@ router.get("/progress/:exerciseName", async (req, res) => {
     }
 
     let rows;
-    if (metric === "totalVolume") {
+    if (metric === "e1rm") {
+      // Best Epley estimate per day: weight × (1 + reps / 30), reps 1 counts as the weight itself
+      rows = await db.execute(sql`
+        SELECT s.date,
+          ROUND(MAX(CASE WHEN st.reps = 1 THEN CAST(st.weight_kg AS numeric)
+                         ELSE CAST(st.weight_kg AS numeric) * (1 + st.reps / 30.0) END), 1)::float AS value
+        FROM sessions s
+        JOIN session_exercises se ON se.session_id = s.id
+        JOIN sets st ON st.session_exercise_id = se.id
+        WHERE se.name = ${exerciseName}
+          AND s.user_id = ${req.userId}
+          AND st.weight_kg IS NOT NULL AND CAST(st.weight_kg AS numeric) > 0
+          AND st.reps IS NOT NULL AND st.reps > 0
+        GROUP BY s.date
+        ORDER BY s.date ASC
+      `);
+    } else if (metric === "totalVolume") {
       rows = await db.execute(sql`
         SELECT s.date, ROUND(SUM(st.reps * CAST(st.weight_kg AS numeric)), 2)::float AS value
         FROM sessions s

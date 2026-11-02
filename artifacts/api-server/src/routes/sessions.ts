@@ -33,6 +33,7 @@ function serializeSet(s: Set, lastBySetNumber?: LastSetMap) {
     setNumber: s.setNumber,
     reps: s.reps,
     weightKg: numOrNull(s.weightKg),
+    effort: s.effort,
     lastReps: last ? last.reps : null,
     lastWeightKg: last ? last.weightKg : null,
   };
@@ -49,6 +50,8 @@ function serializeSessionExercise(se: SessionExerciseWithSets, lastBySetNumber?:
     targetReps: se.targetReps,
     targetWeightKg: numOrNull(se.targetWeightKg),
     notes: se.planExercise?.notes ?? null,
+    supersetGroup: se.supersetGroup ?? se.planExercise?.supersetGroup ?? null,
+    equipment: se.equipment ?? se.planExercise?.equipment ?? null,
     sets: se.sets.map((s) => serializeSet(s, lastBySetNumber)),
   };
 }
@@ -141,6 +144,8 @@ const createSessionExerciseSchema = z.object({
   targetReps: z.number().int().nullable().optional(),
   targetWeightKg: z.number().nullable().optional(),
   planExerciseId: z.string().nullable().optional(),
+  supersetGroup: z.string().max(8).nullable().optional(),
+  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]).nullable().optional(),
 });
 
 const createSessionSchema = z.object({
@@ -157,7 +162,7 @@ type CreateSessionExercise = z.infer<typeof createSessionExerciseSchema>;
 function buildSessionExerciseValues(
   exercises: CreateSessionExercise[],
   sessionId: string,
-) {
+): (typeof sessionExercises.$inferInsert)[] {
   return exercises.map((ex, i) => ({
     sessionId,
     planExerciseId: ex.planExerciseId ?? null,
@@ -166,6 +171,8 @@ function buildSessionExerciseValues(
     targetSets: ex.targetSets ?? null,
     targetReps: ex.targetReps ?? null,
     targetWeightKg: ex.targetWeightKg != null ? ex.targetWeightKg.toString() : null,
+    supersetGroup: ex.supersetGroup ?? null,
+    equipment: ex.equipment ?? null,
   }));
 }
 
@@ -274,6 +281,8 @@ router.post("/sessions", async (req, res) => {
             targetSets: pe.targetSets,
             targetReps: pe.targetReps,
             targetWeightKg: pe.targetWeightKg,
+            supersetGroup: pe.supersetGroup,
+            equipment: pe.equipment,
           }));
         }
       }
@@ -444,6 +453,8 @@ router.post("/sessions/:id/exercises", async (req, res) => {
         targetSets: parsed.data.targetSets ?? null,
         targetReps: parsed.data.targetReps ?? null,
         targetWeightKg: parsed.data.targetWeightKg != null ? parsed.data.targetWeightKg.toString() : null,
+        supersetGroup: parsed.data.supersetGroup ?? null,
+        equipment: parsed.data.equipment ?? null,
       })
       .returning();
 

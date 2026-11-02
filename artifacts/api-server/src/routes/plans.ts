@@ -21,6 +21,8 @@ function serializePlanExercise(pe: PlanExercise) {
     targetReps: pe.targetReps,
     targetWeightKg: numOrNull(pe.targetWeightKg),
     notes: pe.notes,
+    supersetGroup: pe.supersetGroup,
+    equipment: pe.equipment,
   };
 }
 
@@ -45,6 +47,8 @@ async function getPlanWithExercises(planId: string, userId: string) {
   return serializePlan(plan);
 }
 
+export const equipmentSchema = z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]);
+
 const createPlanExerciseSchema = z.object({
   name: z.string().min(1),
   sortOrder: z.number().int(),
@@ -52,6 +56,8 @@ const createPlanExerciseSchema = z.object({
   targetReps: z.number().int().min(1),
   targetWeightKg: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
+  supersetGroup: z.string().max(8).nullable().optional(),
+  equipment: equipmentSchema.nullable().optional(),
 });
 
 const createPlanSchema = z.object({
@@ -71,6 +77,8 @@ function buildExerciseValues(exercises: CreatePlanInput["exercises"], planId: st
     targetReps: ex.targetReps,
     targetWeightKg: ex.targetWeightKg != null ? ex.targetWeightKg.toString() : null,
     notes: ex.notes ?? null,
+    supersetGroup: ex.supersetGroup?.trim() || null,
+    equipment: ex.equipment ?? null,
   }));
 }
 

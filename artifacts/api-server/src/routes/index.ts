@@ -5,6 +5,7 @@ import plansRouter from "./plans.js";
 import sessionsRouter from "./sessions.js";
 import setsRouter from "./sets.js";
 import progressRouter from "./progress.js";
+import insightsRouter from "./insights.js";
 import { userContext } from "../middlewares/user-context.js";
 
 const router: IRouter = Router();
@@ -19,5 +20,6 @@ router.use(plansRouter);
 router.use(sessionsRouter);
 router.use(setsRouter);
 router.use(progressRouter);
+router.use(insightsRouter);
 
 export default router;

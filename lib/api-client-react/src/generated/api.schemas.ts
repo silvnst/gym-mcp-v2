@@ -27,6 +27,18 @@ export interface CreateUserBody {
   name: string;
 }
 
+export type Equipment = typeof Equipment[keyof typeof Equipment] | null;
+
+
+export const Equipment = {
+  barbell: 'barbell',
+  dumbbell: 'dumbbell',
+  bodyweight: 'bodyweight',
+  machine: 'machine',
+  cable: 'cable',
+  other: 'other',
+} as const;
+
 export interface PlanExerciseRecord {
   id: string;
   planId: string;
@@ -36,6 +48,9 @@ export interface PlanExerciseRecord {
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
+  /** Exercises sharing a group letter are done as a superset */
+  supersetGroup?: string | null;
+  equipment?: Equipment | null;
 }
 
 export interface PlanWithExercises {
@@ -53,6 +68,9 @@ export interface CreatePlanExerciseBody {
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
+  /** Exercises sharing a group letter are done as a superset */
+  supersetGroup?: string | null;
+  equipment?: Equipment | null;
 }
 
 export interface CreatePlanBody {
@@ -61,12 +79,25 @@ export interface CreatePlanBody {
   exercises: CreatePlanExerciseBody[];
 }
 
+/**
+ * How the set felt
+ */
+export type Effort = typeof Effort[keyof typeof Effort] | null;
+
+
+export const Effort = {
+  easy: 'easy',
+  right: 'right',
+  hard: 'hard',
+} as const;
+
 export interface SetRecord {
   id: string;
   sessionExerciseId: string;
   setNumber: number;
   reps?: number | null;
   weightKg?: number | null;
+  effort?: Effort | null;
   lastReps?: number | null;
   lastWeightKg?: number | null;
 }
@@ -81,6 +112,9 @@ export interface SessionExerciseWithSets {
   targetReps?: number | null;
   targetWeightKg?: number | null;
   notes?: string | null;
+  /** Exercises sharing a group letter are done as a superset */
+  supersetGroup?: string | null;
+  equipment?: Equipment | null;
   sets: SetRecord[];
 }
 
@@ -115,6 +149,9 @@ export interface CreateSessionExerciseBody {
   targetReps?: number | null;
   targetWeightKg?: number | null;
   planExerciseId?: string | null;
+  /** Exercises sharing a group letter are done as a superset */
+  supersetGroup?: string | null;
+  equipment?: Equipment | null;
 }
 
 export interface CreateSessionBody {
@@ -159,6 +196,29 @@ export interface UpdateSetBody {
   reps?: number | null;
   weightKg?: number | null;
   setNumber?: number | null;
+  effort?: Effort | null;
+}
+
+export interface BestSet {
+  name: string;
+  sessionCount: number;
+  weightKg: number;
+  reps: number;
+  e1rm: number;
+  date: string;
+}
+
+export interface MuscleSetCount {
+  key: string;
+  label: string;
+  sets: number;
+}
+
+export interface MuscleSets {
+  days: number;
+  muscles: MuscleSetCount[];
+  push: number;
+  pull: number;
 }
 
 export type ListSessionsParams = {
@@ -180,5 +240,14 @@ export type GetExerciseProgressMetric = typeof GetExerciseProgressMetric[keyof t
 export const GetExerciseProgressMetric = {
   maxWeight: 'maxWeight',
   totalVolume: 'totalVolume',
+  e1rm: 'e1rm',
 } as const;
+
+export type GetBestsParams = {
+limit?: number;
+};
+
+export type GetMuscleSetsParams = {
+days?: number;
+};
 

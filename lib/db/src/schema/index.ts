@@ -37,6 +37,10 @@ export const planExercises = pgTable("plan_exercises", {
   targetReps: integer("target_reps").notNull(),
   targetWeightKg: numeric("target_weight_kg", { precision: 8, scale: 2 }),
   notes: text("notes"),
+  // Exercises sharing a group letter (e.g. "A") are done as a superset
+  supersetGroup: text("superset_group"),
+  // barbell | dumbbell | bodyweight | machine | cable | other
+  equipment: text("equipment"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -64,6 +68,8 @@ export const sessionExercises = pgTable("session_exercises", {
   targetSets: integer("target_sets"),
   targetReps: integer("target_reps"),
   targetWeightKg: numeric("target_weight_kg", { precision: 8, scale: 2 }),
+  supersetGroup: text("superset_group"),
+  equipment: text("equipment"),
 });
 
 export const sets = pgTable("sets", {
@@ -74,6 +80,8 @@ export const sets = pgTable("sets", {
   setNumber: integer("set_number").notNull(),
   reps: integer("reps"),
   weightKg: numeric("weight_kg", { precision: 8, scale: 2 }),
+  // How the set felt: easy | right | hard
+  effort: text("effort"),
 });
 
 export const plansRelations = relations(plans, ({ many }) => ({

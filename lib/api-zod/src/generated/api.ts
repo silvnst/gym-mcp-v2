@@ -70,7 +70,9 @@ export const ListPlansResponseItem = zod.object({
   "targetSets": zod.number(),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 export const ListPlansResponse = zod.array(ListPlansResponseItem)
@@ -88,7 +90,9 @@ export const CreatePlanBody = zod.object({
   "targetSets": zod.number(),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -113,7 +117,9 @@ export const GetPlanResponse = zod.object({
   "targetSets": zod.number(),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -134,7 +140,9 @@ export const UpdatePlanBody = zod.object({
   "targetSets": zod.number(),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -151,7 +159,9 @@ export const UpdatePlanResponse = zod.object({
   "targetSets": zod.number(),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -209,7 +219,9 @@ export const CreateSessionBody = zod.object({
   "targetSets": zod.number().nullish(),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
-  "planExerciseId": zod.string().nullish()
+  "planExerciseId": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 })).nullish()
 })
 
@@ -239,12 +251,15 @@ export const GetSessionResponse = zod.object({
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
   "lastReps": zod.number().nullish(),
   "lastWeightKg": zod.number().nullish()
 }))
@@ -284,12 +299,15 @@ export const UpdateSessionResponse = zod.object({
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
   "lastReps": zod.number().nullish(),
   "lastWeightKg": zod.number().nullish()
 }))
@@ -322,7 +340,9 @@ export const AddSessionExerciseBody = zod.object({
   "targetSets": zod.number().nullish(),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
-  "planExerciseId": zod.string().nullish()
+  "planExerciseId": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
 })
 
 
@@ -349,12 +369,15 @@ export const UpdateSessionExerciseResponse = zod.object({
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
   "lastReps": zod.number().nullish(),
   "lastWeightKg": zod.number().nullish()
 }))
@@ -415,7 +438,7 @@ export const GetExerciseProgressParams = zod.object({
 export const getExerciseProgressQueryMetricDefault = `maxWeight`;
 
 export const GetExerciseProgressQueryParams = zod.object({
-  "metric": zod.enum(['maxWeight', 'totalVolume']).default(getExerciseProgressQueryMetricDefault)
+  "metric": zod.enum(['maxWeight', 'totalVolume', 'e1rm']).default(getExerciseProgressQueryMetricDefault)
 })
 
 export const GetExerciseProgressResponseItem = zod.object({
@@ -423,6 +446,47 @@ export const GetExerciseProgressResponseItem = zod.object({
   "value": zod.number()
 })
 export const GetExerciseProgressResponse = zod.array(GetExerciseProgressResponseItem)
+
+
+/**
+ * @summary Best set per frequently trained exercise, ranked by session count
+ */
+export const getBestsQueryLimitDefault = 3;
+
+export const GetBestsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(getBestsQueryLimitDefault)
+})
+
+export const GetBestsResponseItem = zod.object({
+  "name": zod.string(),
+  "sessionCount": zod.number(),
+  "weightKg": zod.number(),
+  "reps": zod.number(),
+  "e1rm": zod.number(),
+  "date": zod.string()
+})
+export const GetBestsResponse = zod.array(GetBestsResponseItem)
+
+
+/**
+ * @summary Logged sets per muscle group and push/pull balance over the last N days
+ */
+export const getMuscleSetsQueryDaysDefault = 7;
+
+export const GetMuscleSetsQueryParams = zod.object({
+  "days": zod.coerce.number().default(getMuscleSetsQueryDaysDefault)
+})
+
+export const GetMuscleSetsResponse = zod.object({
+  "days": zod.number(),
+  "muscles": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "sets": zod.number()
+})),
+  "push": zod.number(),
+  "pull": zod.number()
+})
 
 
 /**
@@ -435,7 +499,8 @@ export const UpdateSetParams = zod.object({
 export const UpdateSetBody = zod.object({
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
-  "setNumber": zod.number().nullish()
+  "setNumber": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
 })
 
 export const UpdateSetResponse = zod.object({
@@ -444,6 +509,7 @@ export const UpdateSetResponse = zod.object({
   "setNumber": zod.number(),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
   "lastReps": zod.number().nullish(),
   "lastWeightKg": zod.number().nullish()
 })

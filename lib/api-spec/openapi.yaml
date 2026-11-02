@@ -17,6 +17,8 @@ tags:
     description: Workout session operations
   - name: sets
     description: Set operations
+  - name: insights
+    description: Training analysis
 
 paths:
   /healthz:
@@ -529,7 +531,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [maxWeight, totalVolume]
+            enum: [maxWeight, totalVolume, e1rm]
             default: maxWeight
       responses:
         "200":
@@ -546,6 +548,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /insights/bests:
+    get:
+      operationId: getBests
+      tags: [insights]
+      summary: Best set per frequently trained exercise, ranked by session count
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 3
+      responses:
+        "200":
+          description: Best sets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BestSet"
+
+  /insights/muscle-sets:
+    get:
+      operationId: getMuscleSets
+      tags: [insights]
+      summary: Logged sets per muscle group and push/pull balance over the last N days
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Sets per muscle group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MuscleSets"
 
   /sets/{id}:
     put:
@@ -670,6 +712,12 @@ components:
         notes:
           type: string
           nullable: true
+        supersetGroup:
+          type: string
+          nullable: true
+          description: Exercises sharing a group letter are done as a superset
+        equipment:
+          $ref: "#/components/schemas/Equipment"
       required:
         - id
         - planId
@@ -717,6 +765,12 @@ components:
         notes:
           type: string
           nullable: true
+        supersetGroup:
+          type: string
+          nullable: true
+          description: Exercises sharing a group letter are done as a superset
+        equipment:
+          $ref: "#/components/schemas/Equipment"
       required:
         - name
         - sortOrder
@@ -754,6 +808,8 @@ components:
         weightKg:
           type: number
           nullable: true
+        effort:
+          $ref: "#/components/schemas/Effort"
         lastReps:
           type: integer
           nullable: true
@@ -791,6 +847,12 @@ components:
         notes:
           type: string
           nullable: true
+        supersetGroup:
+          type: string
+          nullable: true
+          description: Exercises sharing a group letter are done as a superset
+        equipment:
+          $ref: "#/components/schemas/Equipment"
         sets:
           type: array
           items:
@@ -887,6 +949,12 @@ components:
         planExerciseId:
           type: string
           nullable: true
+        supersetGroup:
+          type: string
+          nullable: true
+          description: Exercises sharing a group letter are done as a superset
+        equipment:
+          $ref: "#/components/schemas/Equipment"
       required:
         - name
         - sortOrder
@@ -989,3 +1057,59 @@ components:
         setNumber:
           type: integer
           nullable: true
+        effort:
+          $ref: "#/components/schemas/Effort"
+
+    Equipment:
+      type: string
+      nullable: true
+      enum: [barbell, dumbbell, bodyweight, machine, cable, other, null]
+
+    Effort:
+      type: string
+      nullable: true
+      description: How the set felt
+      enum: [easy, right, hard, null]
+
+    BestSet:
+      type: object
+      properties:
+        name:
+          type: string
+        sessionCount:
+          type: integer
+        weightKg:
+          type: number
+        reps:
+          type: integer
+        e1rm:
+          type: number
+        date:
+          type: string
+      required: [name, sessionCount, weightKg, reps, e1rm, date]
+
+    MuscleSetCount:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        sets:
+          type: integer
+      required: [key, label, sets]
+
+    MuscleSets:
+      type: object
+      properties:
+        days:
+          type: integer
+        muscles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MuscleSetCount"
+        push:
+          type: integer
+        pull:
+          type: integer
+      required: [days, muscles, push, pull]

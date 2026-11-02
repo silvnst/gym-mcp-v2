@@ -18,6 +18,7 @@ function serializeSet(s: Set) {
     setNumber: s.setNumber,
     reps: s.reps,
     weightKg: numOrNull(s.weightKg),
+    effort: s.effort,
   };
 }
 
@@ -37,16 +38,16 @@ const updateSetSchema = z.object({
   reps: z.number().int().nullable().optional(),
   weightKg: z.number().nullable().optional(),
   setNumber: z.number().int().min(1).optional(),
+  effort: z.enum(["easy", "right", "hard"]).nullable().optional(),
 });
 
 type UpdateSetInput = z.infer<typeof updateSetSchema>;
 
-function buildSetUpdates(data: UpdateSetInput): Partial<{
-  reps: number | null;
-  weightKg: string | null;
-  setNumber: number;
-}> {
-  const updates: Partial<{ reps: number | null; weightKg: string | null; setNumber: number }> = {};
+type SetUpdates = Partial<{ reps: number | null; weightKg: string | null; setNumber: number; effort: string | null }>;
+
+function buildSetUpdates(data: UpdateSetInput): SetUpdates {
+  const updates: SetUpdates = {};
+  if (data.effort !== undefined) updates.effort = data.effort;
   if (data.reps !== undefined) updates.reps = data.reps;
   if (data.weightKg !== undefined) updates.weightKg = data.weightKg != null ? data.weightKg.toString() : null;
   if (data.setNumber !== undefined) updates.setNumber = data.setNumber;

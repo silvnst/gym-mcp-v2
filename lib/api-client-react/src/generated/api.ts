@@ -20,16 +20,20 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BestSet,
   CreatePlanBody,
   CreateSessionBody,
   CreateSessionExerciseBody,
   CreateSetBody,
   CreateUserBody,
   ErrorResponse,
+  GetBestsParams,
   GetExerciseProgressParams,
+  GetMuscleSetsParams,
   GetTopExercisesParams,
   HealthStatus,
   ListSessionsParams,
+  MuscleSets,
   PlanWithExercises,
   ProgressDataPoint,
   SessionExerciseWithSets,
@@ -1546,6 +1550,174 @@ export function useGetExerciseProgress<TData = Awaited<ReturnType<typeof getExer
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetExerciseProgressQueryOptions(exerciseName,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBestsUrl = (params?: GetBestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/insights/bests?${stringifiedParams}` : `/api/insights/bests`
+}
+
+/**
+ * @summary Best set per frequently trained exercise, ranked by session count
+ */
+export const getBests = async (params?: GetBestsParams, options?: RequestInit): Promise<BestSet[]> => {
+
+  return customFetch<BestSet[]>(getGetBestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBestsQueryKey = (params?: GetBestsParams,) => {
+    return [
+    `/api/insights/bests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBestsQueryOptions = <TData = Awaited<ReturnType<typeof getBests>>, TError = ErrorType<unknown>>(params?: GetBestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBests>>> = ({ signal }) => getBests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBestsQueryResult = NonNullable<Awaited<ReturnType<typeof getBests>>>
+export type GetBestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Best set per frequently trained exercise, ranked by session count
+ */
+
+export function useGetBests<TData = Awaited<ReturnType<typeof getBests>>, TError = ErrorType<unknown>>(
+ params?: GetBestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMuscleSetsUrl = (params?: GetMuscleSetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/insights/muscle-sets?${stringifiedParams}` : `/api/insights/muscle-sets`
+}
+
+/**
+ * @summary Logged sets per muscle group and push/pull balance over the last N days
+ */
+export const getMuscleSets = async (params?: GetMuscleSetsParams, options?: RequestInit): Promise<MuscleSets> => {
+
+  return customFetch<MuscleSets>(getGetMuscleSetsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMuscleSetsQueryKey = (params?: GetMuscleSetsParams,) => {
+    return [
+    `/api/insights/muscle-sets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMuscleSetsQueryOptions = <TData = Awaited<ReturnType<typeof getMuscleSets>>, TError = ErrorType<unknown>>(params?: GetMuscleSetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMuscleSets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMuscleSetsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMuscleSets>>> = ({ signal }) => getMuscleSets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMuscleSets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMuscleSetsQueryResult = NonNullable<Awaited<ReturnType<typeof getMuscleSets>>>
+export type GetMuscleSetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Logged sets per muscle group and push/pull balance over the last N days
+ */
+
+export function useGetMuscleSets<TData = Awaited<ReturnType<typeof getMuscleSets>>, TError = ErrorType<unknown>>(
+ params?: GetMuscleSetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMuscleSets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMuscleSetsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

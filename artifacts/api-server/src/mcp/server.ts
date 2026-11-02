@@ -70,6 +70,8 @@ const planExerciseInputSchema = z.object({
   target_reps: z.number().int().min(1),
   target_weight_kg: z.number().min(0).nullable().optional(),
   notes: z.string().nullable().optional(),
+  superset_group: z.string().max(8).nullable().optional(),
+  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]).nullable().optional(),
 });
 
 const createPlanArgsSchema = z.object({
@@ -254,6 +256,15 @@ function createMcpServer(userId: string): Server {
                   target_reps: { type: "number", description: "Target reps per set." },
                   target_weight_kg: { type: "number", description: "Target weight in kg (optional)." },
                   notes: { type: "string", description: "Optional exercise notes." },
+                  superset_group: {
+                    type: "string",
+                    description: "Optional superset label, e.g. 'A'. Exercises with the same label are done back to back as a superset.",
+                  },
+                  equipment: {
+                    type: "string",
+                    enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"],
+                    description: "Optional equipment. Barbell exercises get a plate calculator in the app.",
+                  },
                 },
                 required: ["name", "target_sets", "target_reps"],
               },
@@ -284,6 +295,8 @@ function createMcpServer(userId: string): Server {
                   target_reps: { type: "number" },
                   target_weight_kg: { type: "number" },
                   notes: { type: "string" },
+                  superset_group: { type: "string", description: "Optional superset label, e.g. 'A'." },
+                  equipment: { type: "string", enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"] },
                 },
                 required: ["name", "target_sets", "target_reps"],
               },
@@ -519,6 +532,8 @@ function createMcpServer(userId: string): Server {
               targetReps: pe.targetReps,
               targetWeightKg: numOrNull(pe.targetWeightKg),
               notes: pe.notes,
+              supersetGroup: pe.supersetGroup,
+              equipment: pe.equipment,
             })),
           }));
 
@@ -780,6 +795,8 @@ function createMcpServer(userId: string): Server {
                   targetReps: ex.target_reps,
                   targetWeightKg: ex.target_weight_kg != null ? ex.target_weight_kg.toString() : null,
                   notes: ex.notes ?? null,
+                  supersetGroup: ex.superset_group?.trim() || null,
+                  equipment: ex.equipment ?? null,
                 })),
               );
             }
@@ -824,6 +841,8 @@ function createMcpServer(userId: string): Server {
                   targetReps: ex.target_reps,
                   targetWeightKg: ex.target_weight_kg != null ? ex.target_weight_kg.toString() : null,
                   notes: ex.notes ?? null,
+                  supersetGroup: ex.superset_group?.trim() || null,
+                  equipment: ex.equipment ?? null,
                 })),
               );
             }
