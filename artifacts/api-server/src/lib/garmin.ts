@@ -20,7 +20,7 @@ const TIMEOUT_MS = 15_000;
 const TIME_ZONE = process.env["GARMIN_TIMEZONE"] ?? "Europe/Zurich";
 const CHUNK_DAYS = 28; // stay under the 31-day limit of the range endpoints
 const BACKFILL_DAYS = 90;
-const ROUTINE_DAYS = 4;
+const ROUTINE_DAYS = 7;
 const INTERVAL_MS = 2 * 60 * 60 * 1000;
 
 export class GarminError extends Error {
@@ -360,6 +360,10 @@ async function syncRange(userId: string, from: string, to: string) {
   logger.info(
     {
       days: dayRows.length,
+      firstDay: dayRows.map((r) => r.date).sort()[0] ?? null,
+      lastDay: dayRows.map((r) => r.date).sort().at(-1) ?? null,
+      lastSleepDay: dayRows.filter((r) => r.sleepSeconds != null).map((r) => r.date).sort().at(-1) ?? null,
+      lastActivityDay: activityRows.map((a) => a.date).sort().at(-1) ?? null,
       restingHr: filled("restingHr"),
       hrvLastNight: filled("hrvLastNight"),
       hrvBaseline: filled("hrvBaselineLow"),
@@ -461,7 +465,8 @@ export function startGarminSync(): void {
     logger.info("GARMIN_API_KEY not set: Garmin sync is off");
     return;
   }
-  void syncGarmin();
+  // A full window on every boot keeps late-arriving watch data from slipping through
+  void syncGarmin(BACKFILL_DAYS);
   setInterval(() => void syncGarmin(), INTERVAL_MS).unref();
 }
 
