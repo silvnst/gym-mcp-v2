@@ -1,376 +1,329 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams, Link } from "wouter";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Plus, Trash2, ArrowLeft, ChevronUp, ChevronDown } from "lucide-react";
 import {
   useCreatePlan,
   useUpdatePlan,
+  useDeletePlan,
   useGetPlan,
   getListPlansQueryKey,
   getGetPlanQueryKey,
+  type Equipment,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { BpButton, Card } from "@/components/bumper";
+import { cleanName, guessEquipment } from "@/lib/training";
+import { cn } from "@/lib/utils";
+
+const GROUPS = ["A", "B", "C", "D"] as const;
+const EQUIPMENT: { value: Exclude<Equipment, null>; label: string }[] = [
+  { value: "barbell", label: "Barbell" },
+  { value: "dumbbell", label: "Dumbbells" },
+  { value: "bodyweight", label: "Bodyweight" },
+  { value: "machine", label: "Machine" },
+  { value: "cable", label: "Cable" },
+  { value: "other", label: "Other" },
+];
+
+const optionalNumber = z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().min(0).nullable());
 
 const exerciseSchema = z.object({
-  name: z.string().min(1, "Exercise name is required"),
-  targetSets: z.coerce.number().min(1, "Min 1 set"),
-  targetReps: z.coerce.number().min(1, "Min 1 rep"),
-  targetWeightKg: z.preprocess(
-    (v) => (v === "" || v == null ? null : v),
-    z.coerce.number().optional().nullable()
-  ),
+  name: z.string().trim().min(1, "Give the exercise a name"),
+  targetSets: z.coerce.number().int().min(1, "At least 1 set"),
+  targetReps: z.coerce.number().int().min(1, "At least 1 rep"),
+  targetWeightKg: optionalNumber,
   notes: z.string().optional().nullable(),
+  supersetGroup: z.string().nullable(),
+  equipment: z.string().nullable(),
 });
 
 const planSchema = z.object({
-  name: z.string().min(1, "Plan name is required"),
+  name: z.string().trim().min(1, "Give the plan a name"),
   notes: z.string().optional().nullable(),
   exercises: z.array(exerciseSchema).min(1, "Add at least one exercise"),
 });
 
 type PlanFormValues = z.infer<typeof planSchema>;
 
-const labelCls = "text-[10px] font-semibold tracking-widest uppercase text-muted-foreground";
-const inputCls = "rounded-xl bg-muted/50 border-border/60";
+const emptyExercise = (): PlanFormValues["exercises"][number] => ({
+  name: "",
+  targetSets: 3,
+  targetReps: 8,
+  targetWeightKg: null,
+  notes: "",
+  supersetGroup: null,
+  equipment: null,
+});
+
+const fieldCls = "w-full h-12 px-3 bg-bp-bg border-2 border-bp-outline rounded-[10px] text-[15px] text-bp-ink placeholder:text-bp-muted";
+const labelCls = "block text-[13px] font-bold text-bp-muted mb-1.5";
 
 export default function PlanFormPage() {
   const [, setLocation] = useLocation();
   const params = useParams();
-  const isEditing = !!params.id;
+  const planId = params.id as string | undefined;
+  const isEditing = !!planId;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data: existingPlan, isLoading: isFetching } = useGetPlan(params.id as string, {
-    query: {
-      enabled: isEditing,
-      queryKey: getGetPlanQueryKey(params.id as string),
-    },
+  const { data: existingPlan, isLoading: isFetching } = useGetPlan(planId ?? "", {
+    query: { enabled: isEditing, queryKey: getGetPlanQueryKey(planId ?? "") },
   });
 
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
+  const deletePlan = useDeletePlan();
 
   const form = useForm<PlanFormValues>({
     resolver: zodResolver(planSchema),
-    defaultValues: {
-      name: "",
-      notes: "",
-      exercises: [{ name: "", targetSets: 3, targetReps: 10, targetWeightKg: null, notes: "" }],
-    },
+    defaultValues: { name: "", notes: "", exercises: [emptyExercise()] },
+    mode: "onBlur",
   });
-
-  const { fields, append, remove, move } = useFieldArray({
-    control: form.control,
-    name: "exercises",
-  });
+  const { fields, append, remove, move } = useFieldArray({ control: form.control, name: "exercises" });
+  const errors = form.formState.errors;
 
   useEffect(() => {
-    if (existingPlan && isEditing) {
-      form.reset({
-        name: existingPlan.name,
-        notes: existingPlan.notes || "",
-        exercises: existingPlan.exercises
-          .slice()
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((e) => ({
-            name: e.name,
-            targetSets: e.targetSets,
-            targetReps: e.targetReps,
-            targetWeightKg: e.targetWeightKg,
-            notes: e.notes || "",
-          })),
-      });
-    }
-  }, [existingPlan, isEditing, form]);
+    if (!existingPlan) return;
+    form.reset({
+      name: cleanName(existingPlan.name),
+      notes: existingPlan.notes ?? "",
+      exercises: existingPlan.exercises
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((e) => ({
+          name: e.name,
+          targetSets: e.targetSets,
+          targetReps: e.targetReps,
+          targetWeightKg: e.targetWeightKg ?? null,
+          notes: e.notes ?? "",
+          supersetGroup: e.supersetGroup ?? null,
+          equipment: e.equipment ?? guessEquipment(e.name),
+        })),
+    });
+  }, [existingPlan]);
 
-  const onSubmit = (data: PlanFormValues) => {
-    const formattedData = {
-      name: data.name,
-      notes: data.notes || undefined,
-      exercises: data.exercises.map((e, index) => ({
-        ...e,
-        sortOrder: index,
-      })),
-    };
-
-    if (isEditing) {
-      updatePlan.mutate(
-        { id: params.id as string, data: formattedData },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
-            queryClient.invalidateQueries({ queryKey: getGetPlanQueryKey(params.id as string) });
-            toast({ title: "Plan updated" });
-            setLocation("/");
-          },
-          onError: () => toast({ title: "Failed to update plan", variant: "destructive" }),
-        }
-      );
-    } else {
-      createPlan.mutate(
-        { data: formattedData },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
-            toast({ title: "Plan created" });
-            setLocation("/");
-          },
-          onError: () => toast({ title: "Failed to create plan", variant: "destructive" }),
-        }
-      );
-    }
+  const done = (title: string) => {
+    queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
+    if (planId) queryClient.invalidateQueries({ queryKey: getGetPlanQueryKey(planId) });
+    toast({ title });
+    setLocation("/plans");
   };
 
-  if (isEditing && isFetching) {
-    return <div className="py-16 text-center text-muted-foreground text-sm">Loading plan…</div>;
-  }
+  const onSubmit = (data: PlanFormValues) => {
+    const payload = {
+      name: data.name.trim(),
+      notes: data.notes?.trim() || null,
+      exercises: data.exercises.map((e, i) => ({
+        name: e.name.trim(),
+        sortOrder: i,
+        targetSets: e.targetSets,
+        targetReps: e.targetReps,
+        targetWeightKg: e.targetWeightKg,
+        notes: e.notes?.trim() || null,
+        supersetGroup: e.supersetGroup,
+        equipment: e.equipment as Equipment,
+      })),
+    };
+    const onError = () => toast({ title: "Plan not saved", description: "Check your connection and try again.", variant: "destructive" });
+    if (planId) updatePlan.mutate({ id: planId, data: payload }, { onSuccess: () => done("Plan saved"), onError });
+    else createPlan.mutate({ data: payload }, { onSuccess: () => done("Plan created"), onError });
+  };
+
+  const onDelete = () => {
+    if (!planId) return;
+    deletePlan.mutate(
+      { id: planId },
+      {
+        onSuccess: () => done("Plan deleted"),
+        onError: () => toast({ title: "Plan not deleted", variant: "destructive" }),
+      },
+    );
+  };
+
+  if (isEditing && isFetching) return <p className="py-16 text-center text-bp-muted text-sm">Loading plan</p>;
 
   const isPending = createPlan.isPending || updatePlan.isPending;
+  const watched = form.watch("exercises");
+  const planName = form.watch("name");
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="-ml-2 shrink-0 rounded-full">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pb-4" noValidate>
+      <div className="flex justify-between items-center gap-3 -mt-2">
+        <Link href="/plans" aria-label="Back to plans" title="Back" className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] border-2 border-bp-outline bg-bp-surface">
+          <ArrowLeft className="w-[18px] h-[18px]" aria-hidden="true" />
         </Link>
-        <div>
-          <p className="text-xs font-semibold tracking-widest uppercase text-primary">
-            {isEditing ? "Edit" : "New"}
-          </p>
-          <h1 className="text-2xl font-display font-bold text-foreground">
-            {isEditing ? "Edit Plan" : "Create Plan"}
-          </h1>
-        </div>
+        <h1 className="font-sans font-bold text-base">{isEditing ? "Edit plan" : "New plan"}</h1>
+        {isEditing ? (
+          <BpButton variant="danger" className="min-h-11" onClick={() => setConfirmDelete(true)}>
+            Delete
+          </BpButton>
+        ) : (
+          <span className="w-11" aria-hidden="true" />
+        )}
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Plan details */}
-          <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={labelCls}>Plan name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g. Push Day, Full Body"
-                      {...field}
-                      data-testid="input-plan-name"
-                      className={`${inputCls} text-base font-display font-semibold`}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={labelCls}>Notes (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Any focus areas or instructions?"
-                      className={`${inputCls} resize-none h-20`}
-                      {...field}
-                      value={field.value || ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      {confirmDelete && (
+        <Card className="bg-bp-warn-soft space-y-3" >
+          <p className="text-sm font-bold">Delete “{planName || "this plan"}”? Workouts you logged with it stay in your history.</p>
+          <div className="flex gap-2">
+            <BpButton onClick={() => setConfirmDelete(false)}>Keep plan</BpButton>
+            <BpButton variant="primary" onClick={onDelete} disabled={deletePlan.isPending}>
+              {deletePlan.isPending ? "Deleting" : "Delete plan"}
+            </BpButton>
           </div>
+        </Card>
+      )}
 
-          {/* Exercises */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
-                Exercises
-              </h2>
-              <button
-                type="button"
-                onClick={() =>
-                  append({ name: "", targetSets: 3, targetReps: 10, targetWeightKg: null, notes: "" })
-                }
-                data-testid="button-add-exercise"
-                className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform shrink-0"
-                aria-label="Add exercise"
+      <div>
+        <label htmlFor="plan-name" className={labelCls}>Name</label>
+        <input id="plan-name" {...form.register("name")} placeholder="e.g. Full body A" className={cn(fieldCls, "font-display font-extrabold text-xl")} aria-invalid={!!errors.name} />
+        {errors.name && <p className="text-[13px] text-bp-warn mt-1">{errors.name.message}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="plan-notes" className={labelCls}>Notes</label>
+        <textarea id="plan-notes" {...form.register("notes")} rows={2} placeholder="Goal, rest times, how to progress" className={cn(fieldCls, "h-auto py-2.5 resize-none")} />
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex justify-between items-baseline">
+          <h2 className="font-sans text-[13px] font-bold text-bp-muted">Exercises</h2>
+          <span className="text-[13px] text-bp-muted">Same letter = superset</span>
+        </div>
+
+        {fields.map((field, index) => {
+          const group = watched[index]?.supersetGroup ?? null;
+          const prevGroup = index > 0 ? watched[index - 1]?.supersetGroup ?? null : null;
+          const nextGroup = watched[index + 1]?.supersetGroup ?? null;
+          const joinedAbove = !!group && group === prevGroup;
+          const joinedBelow = !!group && group === nextGroup;
+          const exErrors = errors.exercises?.[index];
+          const id = (k: string) => `ex-${field.id}-${k}`;
+
+          return (
+            <div key={field.id} className={cn(joinedAbove && "-mt-2")}>
+              <Card
+                className={cn(
+                  "space-y-3",
+                  joinedAbove && "rounded-t-none border-t-0",
+                  joinedBelow && "rounded-b-none",
+                  group && "bg-bp-surface",
+                  !joinedBelow && "shadow-hard",
+                )}
               >
-                <Plus className="h-4 w-4" strokeWidth={2.5} />
-              </button>
-            </div>
-
-            {fields.map((field, index) => (
-              <div key={field.id} className="bg-card rounded-2xl border border-border/60 p-4">
-                <div className="flex items-start gap-2">
-                  <div className="flex flex-col shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                      onClick={() => move(index, index - 1)}
-                      disabled={index === 0}
-                      data-testid={`button-move-up-${index}`}
-                      aria-label="Move exercise up"
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                      onClick={() => move(index, index + 1)}
-                      disabled={index === fields.length - 1}
-                      data-testid={`button-move-down-${index}`}
-                      aria-label="Move exercise down"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-
+                {group && !joinedAbove && <p className="text-[13px] font-bold">Superset {group}</p>}
+                <div className="flex gap-2 items-start">
                   <div className="flex-1 min-w-0">
-                    <FormField
+                    <label htmlFor={id("name")} className="sr-only">Exercise name</label>
+                    <input
+                      id={id("name")}
+                      {...form.register(`exercises.${index}.name`, {
+                        onBlur: (e) => {
+                          if (!form.getValues(`exercises.${index}.equipment`)) form.setValue(`exercises.${index}.equipment`, guessEquipment(e.target.value));
+                        },
+                      })}
+                      placeholder="Exercise, e.g. Back Squat"
+                      className={cn(fieldCls, "font-bold")}
+                      aria-invalid={!!exErrors?.name}
+                    />
+                    {exErrors?.name && <p className="text-[13px] text-bp-warn mt-1">{exErrors.name.message}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label htmlFor={id("sets")} className={labelCls}>Sets</label>
+                    <input id={id("sets")} type="number" inputMode="numeric" min={1} {...form.register(`exercises.${index}.targetSets`)} className={cn(fieldCls, "tabular text-center")} />
+                  </div>
+                  <div>
+                    <label htmlFor={id("reps")} className={labelCls}>Reps</label>
+                    <input id={id("reps")} type="number" inputMode="numeric" min={1} {...form.register(`exercises.${index}.targetReps`)} className={cn(fieldCls, "tabular text-center")} />
+                  </div>
+                  <div>
+                    <label htmlFor={id("kg")} className={labelCls}>kg</label>
+                    <input id={id("kg")} type="number" inputMode="decimal" step="0.25" min={0} {...form.register(`exercises.${index}.targetWeightKg`)} placeholder="Optional" className={cn(fieldCls, "tabular text-center placeholder:text-xs")} />
+                  </div>
+                </div>
+                {(exErrors?.targetSets || exErrors?.targetReps) && (
+                  <p className="text-[13px] text-bp-warn">{exErrors?.targetSets?.message ?? exErrors?.targetReps?.message}</p>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label htmlFor={id("equipment")} className={labelCls}>Equipment</label>
+                    <select id={id("equipment")} {...form.register(`exercises.${index}.equipment`, { setValueAs: (v) => v || null })} className={fieldCls}>
+                      <option value="">Not set</option>
+                      {EQUIPMENT.map((e) => (
+                        <option key={e.value} value={e.value}>{e.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <span id={id("group-label")} className={labelCls}>Superset</span>
+                    <Controller
                       control={form.control}
-                      name={`exercises.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Input
-                              placeholder="Exercise name"
-                              {...field}
-                              data-testid={`input-exercise-name-${index}`}
-                              className={`${inputCls} font-display font-semibold`}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                      name={`exercises.${index}.supersetGroup`}
+                      render={({ field: f }) => (
+                        <div role="group" aria-labelledby={id("group-label")} className="grid grid-cols-5 gap-1">
+                          {[null, ...GROUPS].map((g) => (
+                            <button
+                              key={g ?? "none"}
+                              type="button"
+                              aria-pressed={f.value === g}
+                              aria-label={g ? `Superset ${g}` : "No superset"}
+                              onClick={() => f.onChange(g)}
+                              className={cn(
+                                "h-12 rounded-[8px] border-2 border-bp-outline font-bold text-sm",
+                                f.value === g ? "bg-bp-brand text-bp-on-brand" : "bg-transparent",
+                              )}
+                            >
+                              {g ?? "–"}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     />
                   </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground/50 hover:text-destructive shrink-0"
-                    onClick={() => remove(index)}
-                    data-testid={`button-remove-exercise-${index}`}
-                    aria-label="Remove exercise"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-3 pl-9">
-                  <FormField
-                    control={form.control}
-                    name={`exercises.${index}.targetSets`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className={labelCls}>Sets</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="1" {...field} data-testid={`input-sets-${index}`} className={`${inputCls} font-mono`} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`exercises.${index}.targetReps`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className={labelCls}>Reps</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="1" {...field} data-testid={`input-reps-${index}`} className={`${inputCls} font-mono`} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`exercises.${index}.targetWeightKg`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className={labelCls}>kg</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            placeholder="—"
-                            {...field}
-                            value={field.value || ""}
-                            data-testid={`input-weight-${index}`}
-                            className={`${inputCls} font-mono`}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div>
+                  <label htmlFor={id("notes")} className={labelCls}>Notes</label>
+                  <input id={id("notes")} {...form.register(`exercises.${index}.notes`)} placeholder="Tempo, rest, cues" className={fieldCls} />
                 </div>
-                <div className="mt-3 pl-9">
-                  <FormField
-                    control={form.control}
-                    name={`exercises.${index}.notes`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            placeholder="Notes (e.g. tempo, focus)…"
-                            className={`${inputCls} text-sm h-9`}
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => move(index, index - 1)} disabled={index === 0} aria-label={`Move ${watched[index]?.name?.trim() || "exercise"} up`} title="Move up" className="h-11 w-11 rounded-[10px] border-2 border-bp-outline flex items-center justify-center disabled:opacity-30">
+                    <ChevronUp className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                  <button type="button" onClick={() => move(index, index + 1)} disabled={index === fields.length - 1} aria-label={`Move ${watched[index]?.name?.trim() || "exercise"} down`} title="Move down" className="h-11 w-11 rounded-[10px] border-2 border-bp-outline flex items-center justify-center disabled:opacity-30">
+                    <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                  {fields.length > 1 && (
+                    <BpButton variant="danger" className="min-h-11 text-sm ml-auto" onClick={() => remove(index)}>
+                      <Trash2 className="w-4 h-4" aria-hidden="true" /> Remove
+                    </BpButton>
+                  )}
                 </div>
-              </div>
-            ))}
+              </Card>
+            </div>
+          );
+        })}
 
-            {fields.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground text-sm bg-card rounded-2xl border border-border/60">
-                No exercises added yet.
-              </div>
-            )}
+        {errors.exercises?.root && <p className="text-[13px] text-bp-warn">{errors.exercises.root.message}</p>}
 
-            {form.formState.errors.exercises?.root && (
-              <p className="text-sm font-medium text-destructive mt-2">
-                {form.formState.errors.exercises.root.message}
-              </p>
-            )}
-          </div>
+        <BpButton className="w-full" onClick={() => append(emptyExercise())} data-testid="button-add-exercise">
+          <Plus className="w-[18px] h-[18px]" aria-hidden="true" /> Add exercise
+        </BpButton>
+      </div>
 
-          <button
-            type="submit"
-            className="w-full h-12 text-sm font-bold bg-primary text-primary-foreground rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-60"
-            disabled={isPending}
-            data-testid="button-save-plan"
-          >
-            {isPending ? "Saving…" : "Save Plan"}
-          </button>
-        </form>
-      </Form>
-    </div>
+      <BpButton type="submit" variant="cta" disabled={isPending} data-testid="button-save-plan">
+        {isPending ? "Saving" : isEditing ? "Save plan" : "Create plan"}
+      </BpButton>
+    </form>
   );
 }

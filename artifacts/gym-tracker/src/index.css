@@ -4,104 +4,170 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Bumper design system. Source of truth: docs/design-system.md
+ * Dark is the default; light applies with data-theme="light" on <html>,
+ * or when the OS prefers light and no theme was chosen.
+ */
+
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  /* Bumper tokens as Tailwind colours: bg-bp-surface, text-bp-muted, border-bp-outline … */
+  --color-bp-bg: var(--bp-bg);
+  --color-bp-surface: var(--bp-surface);
+  --color-bp-surface-2: var(--bp-surface-2);
+  --color-bp-outline: var(--bp-outline);
+  --color-bp-ink: var(--bp-ink);
+  --color-bp-muted: var(--bp-muted);
+  --color-bp-brand: var(--bp-brand);
+  --color-bp-on-brand: var(--bp-on-brand);
+  --color-bp-brand-ink: var(--bp-brand-ink);
+  --color-bp-done: var(--bp-done);
+  --color-bp-data-2: var(--bp-data-2);
+  --color-bp-warn: var(--bp-warn);
+  --color-bp-warn-soft: var(--bp-warn-soft);
+  --color-plate-25: #e5383b;
+  --color-plate-20: #1d4ed8;
+  --color-plate-15: #ffd60a;
+  --color-plate-10: #2a9d4b;
+  --color-plate-5: #f5f5f5;
+  --color-plate-change: #c9c9c9;
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-card-border: hsl(var(--card-border));
+  /* shadcn names, mapped onto Bumper so older components follow the theme */
+  --color-background: var(--bp-bg);
+  --color-foreground: var(--bp-ink);
+  --color-border: var(--bp-outline);
+  --color-input: var(--bp-outline);
+  --color-ring: var(--bp-focus);
+  --color-card: var(--bp-surface);
+  --color-card-foreground: var(--bp-ink);
+  --color-card-border: var(--bp-outline);
+  --color-popover: var(--bp-surface);
+  --color-popover-foreground: var(--bp-ink);
+  --color-popover-border: var(--bp-outline);
+  --color-primary: var(--bp-brand);
+  --color-primary-foreground: var(--bp-on-brand);
+  --color-secondary: var(--bp-surface-2);
+  --color-secondary-foreground: var(--bp-ink);
+  --color-muted: var(--bp-surface-2);
+  --color-muted-foreground: var(--bp-muted);
+  --color-accent: var(--bp-surface-2);
+  --color-accent-foreground: var(--bp-ink);
+  --color-destructive: var(--bp-warn);
+  --color-destructive-foreground: var(--bp-bg);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-popover-border: hsl(var(--popover-border));
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-mono: "DM Sans", system-ui, sans-serif;
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-
-  --font-sans: var(--app-font-sans);
-  --font-display: var(--app-font-display);
-  --font-mono: var(--app-font-mono);
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
+  --shadow-hard: 4px 4px 0 var(--bp-shadow);
+  --shadow-hard-sm: 3px 3px 0 var(--bp-shadow);
+  --shadow-hard-ink: 4px 4px 0 var(--bp-outline);
 }
 
-:root {
-  /* Forge — deep charcoal + volt lime */
-  --background: 220 18% 6%;
-  --foreground: 210 25% 96%;
+:root,
+:root[data-theme="dark"] {
+  --bp-bg: #111111;
+  --bp-surface: #1c1c1c;
+  --bp-surface-2: #2a2a2a;
+  --bp-outline: #f5f5f5;
+  --bp-ink: #f5f5f5;
+  --bp-muted: #b3b3b3;
+  --bp-brand: #ffd60a;
+  --bp-on-brand: #111111;
+  --bp-brand-ink: #ffd60a;
+  --bp-done: #14402a;
+  --bp-shadow: #ffd60a;
+  --bp-data-2: #3b6cf0;
+  --bp-warn: #ff8a8a;
+  --bp-warn-soft: #3a1416;
+  --bp-focus: #ffd60a;
+  color-scheme: dark;
+}
 
-  --border: 219 14% 16%;
-  --input: 219 14% 18%;
-  --ring: 84 90% 55%;
+:root[data-theme="light"] {
+  --bp-bg: #f3f3f0;
+  --bp-surface: #ffffff;
+  --bp-surface-2: #ececea;
+  --bp-outline: #111111;
+  --bp-ink: #111111;
+  --bp-muted: #4d4d4d;
+  --bp-brand: #ffd60a;
+  --bp-on-brand: #111111;
+  --bp-brand-ink: #1d4ed8;
+  --bp-done: #c8f2d2;
+  --bp-shadow: #111111;
+  --bp-data-2: #1d4ed8;
+  --bp-warn: #b3141a;
+  --bp-warn-soft: #ffd9d6;
+  --bp-focus: #1d4ed8;
+  color-scheme: light;
+}
 
-  --card: 220 15% 9%;
-  --card-foreground: 210 25% 96%;
-  --card-border: 219 14% 16%;
-
-  --popover: 220 15% 10%;
-  --popover-foreground: 210 25% 96%;
-  --popover-border: 219 14% 18%;
-
-  /* Volt lime */
-  --primary: 84 90% 55%;
-  --primary-foreground: 220 20% 6%;
-
-  --secondary: 210 25% 96%;
-  --secondary-foreground: 220 20% 6%;
-
-  --muted: 220 13% 13%;
-  --muted-foreground: 217 11% 60%;
-
-  --accent: 220 13% 14%;
-  --accent-foreground: 210 25% 96%;
-
-  --destructive: 0 72% 56%;
-  --destructive-foreground: 0 0% 100%;
-
-  --app-font-sans: 'Inter', system-ui, sans-serif;
-  --app-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-  --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  --radius: 0.75rem;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bp-bg: #f3f3f0;
+    --bp-surface: #ffffff;
+    --bp-surface-2: #ececea;
+    --bp-outline: #111111;
+    --bp-ink: #111111;
+    --bp-muted: #4d4d4d;
+    --bp-brand: #ffd60a;
+    --bp-on-brand: #111111;
+    --bp-brand-ink: #1d4ed8;
+    --bp-done: #c8f2d2;
+    --bp-shadow: #111111;
+    --bp-data-2: #1d4ed8;
+    --bp-warn: #b3141a;
+    --bp-warn-soft: #ffd9d6;
+    --bp-focus: #1d4ed8;
+    color-scheme: light;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-  html {
-    color-scheme: dark;
-  }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-optical-sizing: auto;
   }
   h1, h2, h3, h4 {
-    font-family: var(--app-font-display);
+    font-family: var(--font-display);
+  }
+  :focus-visible {
+    outline: 3px solid var(--bp-focus);
+    outline-offset: 2px;
   }
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Press feedback for hard-shadow buttons: the shadow drops and the button moves into it */
+  .press {
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+  .press:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press {
+      transition: none;
+    }
   }
 }
 

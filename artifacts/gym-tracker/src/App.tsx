@@ -6,11 +6,13 @@ import { Layout } from "@/components/layout";
 import { ProfileGate } from "@/components/profile-gate";
 import NotFound from "@/pages/not-found";
 
-import HomePage from "@/pages/home";
+import { Redirect } from "wouter";
+import TodayPage from "@/pages/today";
+import PlansPage from "@/pages/plans";
 import PlanFormPage from "@/pages/plan-form";
-import StartSessionPage from "@/pages/start";
 import SessionPage from "@/pages/session";
 import HistoryPage from "@/pages/history";
+import ProgressPage from "@/pages/progress";
 import SessionDetailPage from "@/pages/session-detail";
 
 const queryClient = new QueryClient({
@@ -33,10 +35,14 @@ function Router() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={HomePage} />
+        <Route path="/" component={TodayPage} />
+        <Route path="/plans" component={PlansPage} />
         <Route path="/plans/new" component={PlanFormPage} />
         <Route path="/plans/:id/edit" component={PlanFormPage} />
-        <Route path="/start" component={StartSessionPage} />
+        <Route path="/progress" component={ProgressPage} />
+        <Route path="/start">
+          <Redirect to="/" />
+        </Route>
         <Route path="/session/:id" component={SessionPage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/history/:id" component={SessionDetailPage} />

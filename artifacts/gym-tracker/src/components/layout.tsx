@@ -1,110 +1,108 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Dumbbell, Play, History, WifiOff, Check, X } from "lucide-react";
+import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, Check, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useProfile } from "@/lib/profile";
+import { useTheme, type ThemeChoice } from "@/lib/theme";
 import { ProfileAvatar, NewProfileForm } from "@/components/profile-gate";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { href: "/", label: "Today", icon: House, match: (l: string) => l === "/" },
+  { href: "/plans", label: "Plans", icon: Dumbbell, match: (l: string) => l.startsWith("/plans") },
+  { href: "/progress", label: "Progress", icon: TrendingUp, match: (l: string) => l.startsWith("/progress") },
+  { href: "/history", label: "History", icon: ListChecks, match: (l: string) => l.startsWith("/history") },
+];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isOnline = useOnlineStatus();
-  const { user } = useProfile();
-  const [switcherOpen, setSwitcherOpen] = useState(false);
-
-  const navItems = [
-    { href: "/", label: "Plans", icon: Dumbbell, match: (l: string) => l === "/" || l.startsWith("/plans") },
-    { href: "/start", label: "Train", icon: Play, match: (l: string) => l === "/start" || l.startsWith("/session") },
-    { href: "/history", label: "History", icon: History, match: (l: string) => l.startsWith("/history") },
-  ];
+  const inWorkout = location.startsWith("/session/");
+  useTheme(); // applies the stored theme choice on load
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <div className="flex flex-col min-h-[100dvh] bg-bp-bg text-bp-ink">
       {!isOnline && (
         <div
           data-testid="banner-offline"
-          className="flex items-center justify-center gap-2 bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs font-medium text-amber-400"
+          role="status"
+          className="flex items-center justify-center gap-2 bg-bp-warn-soft border-b-2 border-bp-outline px-4 py-2 text-[13px] font-medium"
         >
-          <WifiOff className="w-3.5 h-3.5 shrink-0" />
-          <span>Offline — changes will sync when you reconnect.</span>
+          <WifiOff className="w-4 h-4 shrink-0 text-bp-warn" aria-hidden="true" />
+          <span>You're offline. Changes sync when you reconnect.</span>
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-28 sm:pb-32">
-        {children}
-      </main>
+      <main className={cn("flex-1 w-full max-w-md mx-auto px-5", inWorkout ? "pt-0 pb-8" : "pt-7 pb-32")}>{children}</main>
 
-      {switcherOpen && <ProfileSwitcher onClose={() => setSwitcherOpen(false)} />}
-
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border">
-        <div
-          className="max-w-md mx-auto px-6 flex justify-between items-center"
-          style={{ paddingTop: "0.5rem", paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
-        >
-          {navItems.map((item) => {
-            const isActive = item.match(location);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                data-testid={`nav-${item.label.toLowerCase()}`}
-                className={`flex flex-col items-center justify-center gap-1 w-16 py-1.5 rounded-xl transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <div
-                  className={`flex items-center justify-center h-8 w-14 rounded-full transition-colors ${
-                    isActive ? "bg-primary/15" : ""
-                  }`}
-                >
-                  <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-                <span className="text-[10px] font-semibold tracking-wide uppercase">{item.label}</span>
-              </Link>
-            );
-          })}
-
-          <button
-            onClick={() => setSwitcherOpen(true)}
-            data-testid="nav-profile"
-            className="flex flex-col items-center justify-center gap-1 w-16 py-1.5 text-muted-foreground hover:text-foreground"
-            aria-label="Switch profile"
+      {!inWorkout && (
+        <nav aria-label="Main" className="fixed bottom-0 left-0 right-0 z-50 bg-bp-surface border-t-2 border-bp-outline">
+          <div
+            className="max-w-md mx-auto px-1 grid grid-cols-4"
+            style={{ paddingTop: "0.5rem", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
           >
-            <div className="flex items-center justify-center h-8">
-              <ProfileAvatar name={user.name} size="sm" />
-            </div>
-            <span className="text-[10px] font-semibold tracking-wide uppercase truncate max-w-16">
-              {user.name.split(" ")[0]}
-            </span>
-          </button>
-        </div>
-      </nav>
+            {NAV.map((item) => {
+              const active = item.match(location);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                  className={cn(
+                    "min-h-12 flex flex-col items-center justify-center gap-1 rounded-lg text-xs",
+                    active ? "text-bp-ink font-bold" : "text-bp-muted font-medium",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-[30px] w-14 flex items-center justify-center rounded-lg box-border",
+                      active && "bg-bp-brand text-bp-on-brand border-2 border-bp-outline",
+                    )}
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+                  </span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
 
-function ProfileSwitcher({ onClose }: { onClose: () => void }) {
+const THEMES: { value: ThemeChoice; label: string }[] = [
+  { value: "system", label: "Auto" },
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+];
+
+/** Bottom sheet for switching profile and theme, opened from the Today header. */
+export function ProfileSheet({ onClose }: { onClose: () => void }) {
   const { user, users, switchUser } = useProfile();
+  const [theme, setTheme] = useTheme();
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-label="Switch profile">
-      <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Profile and settings">
+      <button aria-label="Close" className="absolute inset-0 bg-black/60 cursor-default" onClick={onClose} />
       <div
-        className="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-card border-t border-x border-border rounded-t-3xl p-5 space-y-4"
-        style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+        className="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-bp-surface border-t-2 border-x-2 border-bp-outline rounded-t-[20px] p-5 space-y-5"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-display font-bold">Profiles</h2>
+          <h2 className="font-display font-extrabold text-[22px]">Profile</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+            className="h-11 w-11 flex items-center justify-center rounded-[10px] border-2 border-bp-outline"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
+        <div className="space-y-2 max-h-56 overflow-y-auto no-scrollbar">
           {users.map((u) => {
             const isCurrent = u.id === user.id;
             return (
@@ -115,13 +113,14 @@ function ProfileSwitcher({ onClose }: { onClose: () => void }) {
                   onClose();
                 }}
                 data-testid={`button-switch-profile-${u.id}`}
-                className={`w-full flex items-center gap-3 rounded-2xl p-3 text-left active:scale-[0.98] transition-transform border ${
-                  isCurrent ? "border-primary/50 bg-primary/5" : "border-border/60 bg-muted/30"
-                }`}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-[14px] p-3 text-left border-2 border-bp-outline",
+                  isCurrent ? "bg-bp-done" : "bg-bp-bg",
+                )}
               >
-                <ProfileAvatar name={u.name} active={isCurrent} />
-                <span className="font-display font-semibold flex-1">{u.name}</span>
-                {isCurrent && <Check className="w-4 h-4 text-primary shrink-0" />}
+                <ProfileAvatar name={u.name} active={isCurrent} size="sm" />
+                <span className="font-bold flex-1">{u.name}</span>
+                {isCurrent && <Check className="w-5 h-5 shrink-0" aria-label="Current profile" />}
               </button>
             );
           })}
@@ -133,6 +132,28 @@ function ProfileSwitcher({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         />
+
+        <div>
+          <h3 id="theme-label" className="font-sans text-[13px] font-bold text-bp-muted mb-2">
+            Appearance
+          </h3>
+          <div role="group" aria-labelledby="theme-label" className="grid grid-cols-3 gap-2">
+            {THEMES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                aria-pressed={theme === t.value}
+                onClick={() => setTheme(t.value)}
+                className={cn(
+                  "min-h-12 rounded-[10px] border-2 border-bp-outline font-bold text-sm",
+                  theme === t.value ? "bg-bp-brand text-bp-on-brand shadow-hard-sm" : "bg-transparent text-bp-ink",
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

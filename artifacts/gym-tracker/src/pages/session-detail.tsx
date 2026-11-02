@@ -54,7 +54,7 @@ export default function SessionDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="py-16 text-center text-muted-foreground text-sm">Loading workout…</div>;
+    return <div className="py-16 text-center text-muted-foreground text-sm">Loading workout</div>;
   }
 
   if (!session) {
@@ -71,7 +71,7 @@ export default function SessionDetailPage() {
           </Button>
         </Link>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold tracking-widest uppercase text-primary">Workout</p>
+          <p className="text-sm font-medium text-muted-foreground">Workout</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {confirming ? (
@@ -87,7 +87,7 @@ export default function SessionDetailPage() {
                 disabled={deleteSession.isPending}
                 className="text-xs font-semibold text-destructive-foreground bg-destructive px-3 py-2 rounded-full disabled:opacity-60"
               >
-                {deleteSession.isPending ? "Deleting…" : "Delete"}
+                {deleteSession.isPending ? "Deleting" : "Delete"}
               </button>
             </>
           ) : (
@@ -154,7 +154,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
   return (
     <>
       {/* Overview card */}
-      <div className="bg-card rounded-2xl border border-border/60 p-5">
+      <div className="bg-card rounded-[14px] border-2 border-border p-5">
         <h1 className="text-2xl font-display font-bold mb-2">{session.name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
           <span className="flex items-center gap-1.5">
@@ -170,31 +170,31 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="bg-muted/60 rounded-xl p-3 text-center">
-            <div className="text-lg font-display font-bold text-primary leading-tight">
-              {totalVolume > 0 ? formatVolume(totalVolume) : "—"}
+          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+            <div className="text-lg font-bold tabular-nums text-foreground leading-tight">
+              {totalVolume > 0 ? formatVolume(totalVolume) : "–"}
             </div>
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mt-0.5">
+            <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Volume
             </div>
           </div>
-          <div className="bg-muted/60 rounded-xl p-3 text-center">
-            <div className="text-lg font-display font-bold text-primary leading-tight">{totalSets}</div>
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mt-0.5">
+          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+            <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{totalSets}</div>
+            <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Sets
             </div>
           </div>
-          <div className="bg-muted/60 rounded-xl p-3 text-center">
-            <div className="text-lg font-display font-bold text-primary leading-tight">{exercises.length}</div>
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mt-0.5">
+          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+            <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{exercises.length}</div>
+            <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Exercises
             </div>
           </div>
         </div>
 
         {session.notes && (
-          <div className="mt-4 pt-4 border-t border-border/60">
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mb-1.5">
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="text-[13px] text-muted-foreground font-medium mb-1.5">
               Notes
             </div>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{session.notes}</p>
@@ -205,7 +205,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
       {/* Exercises */}
       <div className="space-y-4">
         {exercises.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-2xl border border-border/60">
+          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-[14px] border-2 border-border">
             No exercises logged in this workout.
           </div>
         ) : (
@@ -218,17 +218,17 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                 exercise.targetReps != null || exercise.targetWeightKg != null || exercise.targetSets != null;
 
               return (
-                <div key={exercise.id} className="bg-card rounded-2xl border border-border/60 p-4">
+                <div key={exercise.id} className="bg-card rounded-[14px] border-2 border-border p-4">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
                     <div className="flex items-baseline gap-2 min-w-0">
-                      <span className="text-xs font-mono text-primary">
+                      <span className="text-xs font-bold text-muted-foreground">
                         {(index + 1).toString().padStart(2, "0")}
                       </span>
                       <h4 className="text-base font-display font-semibold truncate">{exercise.name}</h4>
                     </div>
                     {hasTarget && (
                       <span className="text-[11px] font-medium text-muted-foreground">
-                        Target {exercise.targetSets ?? "—"}×{exercise.targetReps ?? "—"}
+                        Target {exercise.targetSets ?? "–"}×{exercise.targetReps ?? "–"}
                         {exercise.targetWeightKg ? ` @ ${exercise.targetWeightKg} kg` : ""}
                       </span>
                     )}
@@ -237,8 +237,8 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                   {allSets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No sets logged.</p>
                   ) : (
-                    <div className="rounded-xl overflow-hidden border border-border/40">
-                      <div className="grid grid-cols-[2.5rem_1fr_1fr_1fr] text-[10px] font-semibold tracking-widest uppercase text-muted-foreground bg-muted/50 px-3 py-2 gap-2">
+                    <div className="rounded-[10px] overflow-hidden border border-border/40">
+                      <div className="grid grid-cols-[2.5rem_1fr_1fr_1fr] text-[13px] font-bold text-muted-foreground bg-muted/50 px-3 py-2 gap-2">
                         <div className="text-center">Set</div>
                         <div className="text-right">kg</div>
                         <div className="text-right">Reps</div>
@@ -257,14 +257,14 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                                 {set.setNumber}
                               </div>
                               <div className="text-right font-mono font-medium tabular-nums">
-                                {set.weightKg ?? <span className="text-muted-foreground/40">—</span>}
+                                {set.weightKg ?? <span className="text-muted-foreground/40">–</span>}
                               </div>
                               <div className="text-right font-mono font-medium tabular-nums">
-                                {set.reps ?? <span className="text-muted-foreground/40">—</span>}
+                                {set.reps ?? <span className="text-muted-foreground/40">–</span>}
                               </div>
-                              <div className="text-right font-mono text-primary/80 text-xs tabular-nums">
+                              <div className="text-right font-mono text-muted-foreground text-xs tabular-nums">
                                 {vol != null && vol > 0 ? Math.round(vol) : (
-                                  <span className="text-muted-foreground/40">—</span>
+                                  <span className="text-muted-foreground/40">–</span>
                                 )}
                               </div>
                             </div>
@@ -344,12 +344,12 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
 
   const sortedExercises = session.exercises.slice().sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const labelCls = "text-[10px] font-semibold tracking-widest uppercase text-muted-foreground";
+  const labelCls = "text-[13px] font-bold text-muted-foreground";
 
   return (
     <>
       {/* Session meta editor */}
-      <div className="bg-card rounded-2xl border border-primary/30 p-5 space-y-4">
+      <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-5 space-y-4">
         <div className="space-y-1.5">
           <label className={labelCls}>Name</label>
           <Input
@@ -357,7 +357,7 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
             onChange={(e) => setName(e.target.value)}
             onBlur={saveMeta}
             data-testid="input-edit-session-name"
-            className="rounded-xl bg-muted/50 border-border/60 font-display font-semibold text-base"
+            className="rounded-[10px] bg-muted/50 border-border font-display font-semibold text-base"
           />
         </div>
 
@@ -370,7 +370,7 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
               onChange={(e) => setDate(e.target.value)}
               onBlur={saveMeta}
               data-testid="input-edit-session-date"
-              className="rounded-xl bg-muted/50 border-border/60"
+              className="rounded-[10px] bg-muted/50 border-border"
             />
           </div>
           <div className="space-y-1.5">
@@ -383,7 +383,7 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
               onBlur={saveMeta}
               placeholder="e.g. 60"
               data-testid="input-edit-session-duration"
-              className="rounded-xl bg-muted/50 border-border/60 font-mono tabular-nums"
+              className="rounded-[10px] bg-muted/50 border-border font-mono tabular-nums"
             />
           </div>
         </div>
@@ -394,9 +394,9 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={saveMeta}
-            placeholder="Workout notes…"
+            placeholder="Workout notes"
             rows={2}
-            className="w-full bg-muted/50 border border-border/60 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 resize-none transition-colors"
+            className="w-full bg-muted/50 border-2 border-border rounded-[10px] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 resize-none transition-colors"
           />
         </div>
       </div>
@@ -415,19 +415,19 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
         {/* Add exercise */}
         <div className="flex gap-2">
           <Input
-            placeholder="Add exercise…"
+            placeholder="Add exercise"
             value={newExerciseName}
             onChange={(e) => setNewExerciseName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
             disabled={addExercise.isPending}
             data-testid="input-edit-add-exercise"
-            className="flex-1 h-11 rounded-xl bg-card border-border/60"
+            className="flex-1 h-11 rounded-[10px] bg-card border-border"
           />
           <Button
             onClick={handleAddExercise}
             disabled={addExercise.isPending || !newExerciseName.trim()}
             data-testid="button-edit-add-exercise"
-            className="shrink-0 h-11 rounded-xl font-semibold"
+            className="shrink-0 h-11 rounded-[10px] font-semibold"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -492,7 +492,7 @@ function ExerciseEditor({
   const sortedSets = exercise.sets.slice().sort((a, b) => a.setNumber - b.setNumber);
 
   return (
-    <div className="bg-card rounded-2xl border border-primary/30 p-4">
+    <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-4">
       <div className="flex items-center gap-2 mb-3">
         <Input
           value={name}
@@ -500,7 +500,7 @@ function ExerciseEditor({
           onBlur={saveName}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLElement).blur()}
           data-testid={`input-edit-exercise-name-${exercise.id}`}
-          className="flex-1 rounded-xl bg-muted/50 border-border/60 font-display font-semibold"
+          className="flex-1 rounded-[10px] bg-muted/50 border-border font-display font-semibold"
         />
         {confirmDelete ? (
           <div className="flex gap-1 shrink-0">
@@ -533,7 +533,7 @@ function ExerciseEditor({
         )}
       </div>
 
-      <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem] gap-2 px-1 text-[10px] font-semibold text-muted-foreground tracking-widest uppercase mb-1">
+      <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem] gap-2 px-1 text-[13px] font-bold text-muted-foreground mb-1">
         <div className="text-center">Set</div>
         <div className="text-center">kg</div>
         <div className="text-center">Reps</div>
@@ -549,7 +549,7 @@ function ExerciseEditor({
       )}
 
       <button
-        className="mt-2 w-full text-xs font-semibold text-primary flex items-center justify-center gap-1 py-2.5 rounded-xl bg-primary/5 hover:bg-primary/10 transition-colors"
+        className="mt-2 w-full text-xs font-semibold text-primary flex items-center justify-center gap-1 py-2.5 rounded-[10px] bg-primary/5 hover:bg-primary/10 transition-colors"
         onClick={handleAddSet}
         data-testid={`button-edit-add-set-${exercise.id}`}
       >
@@ -629,7 +629,7 @@ function EditableSetRow({ set, onChanged }: { set: SetRecord; onChanged: () => v
         onChange={(e) => setWeight(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        placeholder="—"
+        placeholder="–"
         data-testid={`input-edit-set-${set.id}-weight`}
         className={inputCls}
       />
@@ -640,7 +640,7 @@ function EditableSetRow({ set, onChanged }: { set: SetRecord; onChanged: () => v
         onChange={(e) => setReps(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        placeholder="—"
+        placeholder="–"
         data-testid={`input-edit-set-${set.id}-reps`}
         className={inputCls}
       />
