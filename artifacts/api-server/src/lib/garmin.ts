@@ -199,6 +199,10 @@ function byDate(payload: unknown): Map<string, Obj> {
 
 /** Top-level key names of a payload, for logging the shape without health values. */
 function shape(payload: unknown): string {
+  if (isObj(payload)) {
+    const arrays = Object.entries(payload).filter(([, v]) => Array.isArray(v));
+    if (arrays.length === 1) return `{${Object.keys(payload).join(",")}} with ${arrays[0]![0]}: ${shape(arrays[0]![1])}`;
+  }
   if (Array.isArray(payload)) return `array(${payload.length}) of [${isObj(payload[0]) ? Object.keys(payload[0]).slice(0, 25).join(",") : typeof payload[0]}]`;
   if (isObj(payload)) return `{${Object.keys(payload).slice(0, 25).join(",")}}`;
   return String(payload);
@@ -350,6 +354,26 @@ async function syncRange(userId: string, from: string, to: string) {
   });
 
   const dayRows = [...days.entries()].map(([date, r]) => ({ userId, date, ...r, syncedAt: new Date() }));
+
+  // How many days got each field (counts only, no health values) to spot parsing gaps
+  const filled = (k: keyof DayRow) => dayRows.filter((r) => r[k] != null).length;
+  logger.info(
+    {
+      days: dayRows.length,
+      restingHr: filled("restingHr"),
+      hrvLastNight: filled("hrvLastNight"),
+      hrvBaseline: filled("hrvBaselineLow"),
+      hrvStatus: filled("hrvStatus"),
+      sleepSeconds: filled("sleepSeconds"),
+      sleepScore: filled("sleepScore"),
+      bodyBattery: filled("bodyBatteryHigh"),
+      stress: filled("stressAvg"),
+      steps: filled("steps"),
+      activitiesWithLoad: activityRows.filter((a) => a.trainingLoad != null).length,
+      activitiesWithHr: activityRows.filter((a) => a.avgHr != null).length,
+    },
+    "Garmin field coverage",
+  );
   if (dayRows.length > 0) {
     await db
       .insert(garminDays)
