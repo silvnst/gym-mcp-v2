@@ -5,7 +5,7 @@
     "buildCommand": "pnpm run build:railway"
   },
   "deploy": {
-    "preDeployCommand": "pnpm run db:push",
+    "preDeployCommand": "pnpm run db:migrate",
     "startCommand": "pnpm run start:railway",
     "healthcheckPath": "/api/healthz",
     "healthcheckTimeout": 120,

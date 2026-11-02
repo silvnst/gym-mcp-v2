@@ -7,7 +7,8 @@ Personal gym tracker with a React frontend, an Express API and an MCP server, de
 - Work on the `dev` branch. Railway deploys `dev` to the **dev** environment (own Postgres, own MCP secret) and `main` to **production**.
 - Changes reach `main` only through a pull request from `dev` after testing on dev.
 - Never touch production data from a dev task.
-- The pre-deploy step runs `drizzle-kit push --force`. Only make additive, nullable schema changes until this is replaced by real migrations.
+- Schema changes go through migrations: edit `lib/db/src/schema/index.ts`, run `DATABASE_URL=... pnpm run db:generate`, review the SQL in `lib/db/migrations`, commit it. Railway runs `pnpm run db:migrate` before each deploy.
+- Never edit a migration that has already run on production; add a new one. Prefer additive changes; renames and drops need a plan for existing data.
 
 ## API changes
 

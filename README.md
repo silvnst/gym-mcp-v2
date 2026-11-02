@@ -40,7 +40,7 @@ The API server serves everything from one port: `/api/*` (REST), `/mcp` (MCP), a
 1. Go to [railway.com](https://railway.com) → **New Project** → **Deploy from GitHub repo** → select this repository.
 2. Railway reads `railway.json` from the repo root, so build command, start command, pre-deploy migration, and health check are configured automatically:
    - **Build**: `pnpm run build:railway` (builds frontend + API server)
-   - **Pre-deploy**: `pnpm run db:push` (applies the Drizzle schema to Postgres)
+   - **Pre-deploy**: `pnpm run db:migrate` (applies pending SQL migrations from `lib/db/migrations`)
    - **Start**: `node artifacts/api-server/dist/index.mjs`
    - **Health check**: `/api/healthz`
 
@@ -81,9 +81,9 @@ It speaks Streamable HTTP and exposes read tools (`get_history`, `get_session_de
 ```bash
 pnpm install
 
-# Push schema to your local Postgres
+# Apply migrations to your local Postgres
 export DATABASE_URL=postgres://...
-pnpm run db:push
+pnpm run db:migrate
 
 # Terminal 1 — frontend dev server (port 5173)
 pnpm --filter @workspace/gym-tracker dev
@@ -101,6 +101,16 @@ Open http://localhost:8080.
 pnpm run build:railway
 DATABASE_URL=postgres://... node artifacts/api-server/dist/index.mjs
 ```
+
+### Changing the database
+
+Edit `lib/db/src/schema/index.ts`, then generate and review a migration:
+
+```bash
+DATABASE_URL=postgres://... pnpm run db:generate
+```
+
+The SQL lands in `lib/db/migrations`. Commit it; Railway applies it before the next deploy. Databases created before migrations existed are adopted automatically: the baseline is recorded as applied and only newer migrations run.
 
 ### Changing the API
 

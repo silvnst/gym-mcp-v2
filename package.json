@@ -11,6 +11,8 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:railway": "pnpm --filter @workspace/gym-tracker build && pnpm --filter @workspace/api-server build",
     "start:railway": "node artifacts/api-server/dist/index.mjs",
+    "db:migrate": "pnpm --filter @workspace/db migrate",
+    "db:generate": "pnpm --filter @workspace/db generate",
     "db:push": "pnpm --filter @workspace/db push-force",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
