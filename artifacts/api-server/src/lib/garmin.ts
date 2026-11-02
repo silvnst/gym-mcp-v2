@@ -280,6 +280,19 @@ async function syncRange(userId: string, from: string, to: string) {
 
     if (!shapesLogged) {
       logger.info({ summaries: shape(summaries), sleep: shape(sleep), hrv: shape(hrv) }, "Garmin payload shapes");
+      // Key names one and two levels into the first daily summary (names only, no values)
+      const first = [...byDate(summaries).values()].at(-1);
+      if (first) {
+        const nested: Record<string, string> = {};
+        for (const [k, v] of Object.entries(first)) {
+          if (isObj(v)) {
+            nested[k] = Object.entries(v)
+              .map(([k2, v2]) => (isObj(v2) ? `${k2}{${Object.keys(v2).join(",")}}` : k2))
+              .join(",");
+          }
+        }
+        logger.info(nested, "Garmin daily summary keys");
+      }
       shapesLogged = true;
     }
 
@@ -320,6 +333,8 @@ async function syncRange(userId: string, from: string, to: string) {
   );
   if (!activitiesShapeLogged) {
     logger.info({ activities: shape(activities) }, "Garmin payload shapes");
+    const firstActivity = Array.isArray(activities) ? activities.find(isObj) : null;
+    if (firstActivity) logger.info({ keys: Object.keys(firstActivity).join(",") }, "Garmin activity keys");
     activitiesShapeLogged = true;
   }
 
