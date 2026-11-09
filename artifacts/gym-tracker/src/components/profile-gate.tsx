@@ -1,56 +1,135 @@
-import { useState } from "react";
-import {
-  useListUsers,
-  useCreateUser,
-  getListUsersQueryKey,
-  type UserRecord,
-} from "@workspace/api-client-react";
+import { useEffect } from "react";
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dumbbell, Plus } from "lucide-react";
-import { getStoredProfileId, storeProfileId, ProfileContext } from "@/lib/profile";
+import { useGetMe, getGetMeQueryKey, setAuthTokenGetter } from "@workspace/api-client-react";
+import { Dumbbell } from "lucide-react";
+import { ProfileContext } from "@/lib/profile";
 
-// Apply the stored profile to the fetch layer before any query fires
-storeProfileId(getStoredProfileId());
+const domain = import.meta.env["VITE_AUTH0_DOMAIN"] as string | undefined;
+const clientId = import.meta.env["VITE_AUTH0_CLIENT_ID"] as string | undefined;
+const audience = import.meta.env["VITE_AUTH0_AUDIENCE"] as string | undefined;
 
-export function ProfileGate({ children }: { children: React.ReactNode }) {
-  const [profileId, setProfileId] = useState<string | null>(getStoredProfileId());
-  const queryClient = useQueryClient();
-  const { data: users, isLoading } = useListUsers();
+/** Without the three Auth0 settings the app talks to the API unauthenticated (local dev with AUTH_DISABLED=true). */
+const AUTH_ENABLED = Boolean(domain && clientId && audience);
 
-  if (isLoading || !users) {
-    return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
-        <Dumbbell className="w-8 h-8 text-bp-brand animate-pulse" aria-label="Loading" />
-      </div>
-    );
-  }
-
-  const current = profileId ? users.find((u) => u.id === profileId) : undefined;
-
-  // Works for ids not yet in the cached list (e.g. a just-created profile):
-  // clearing the cache refetches the user list, and the gate re-resolves.
-  const selectById = (id: string) => {
-    storeProfileId(id);
-    queryClient.clear();
-    setProfileId(id);
-  };
-
-  if (!current) {
-    // No profile chosen (or the stored one no longer exists)
-    if (profileId) storeProfileId(null);
-    return <ProfilePicker users={users} onSelect={(u) => selectById(u.id)} />;
-  }
-
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  if (!AUTH_ENABLED) return <>{children}</>;
   return (
-    <ProfileContext.Provider
-      value={{
-        user: current,
-        users,
-        switchUser: selectById,
+    <Auth0Provider
+      domain={domain!}
+      clientId={clientId!}
+      cacheLocation="localstorage"
+      useRefreshTokens
+      authorizationParams={{
+        redirect_uri: window.location.origin + import.meta.env.BASE_URL,
+        audience,
+        scope: "openid profile email offline_access",
+      }}
+      onRedirectCallback={(appState) => {
+        window.history.replaceState({}, document.title, appState?.returnTo ?? import.meta.env.BASE_URL);
       }}
     >
       {children}
-    </ProfileContext.Provider>
+    </Auth0Provider>
+  );
+}
+
+export function ProfileGate({ children }: { children: React.ReactNode }) {
+  return AUTH_ENABLED ? <Auth0Gate>{children}</Auth0Gate> : <ProfileLoader signOut={null}>{children}</ProfileLoader>;
+}
+
+function Auth0Gate({ children }: { children: React.ReactNode }) {
+  const { isLoading, isAuthenticated, error, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  // Attach the access token to every API call; set before the first query fires
+  if (isAuthenticated) setAuthTokenGetter(async () => (await getAccessTokenSilently()) ?? null);
+
+  useEffect(() => () => setAuthTokenGetter(null), []);
+
+  if (isLoading) return <Splash />;
+
+  if (!isAuthenticated) {
+    return (
+      <Screen
+        title="Gym tracker"
+        text={error ? "Signing in did not work. Try again." : "Sign in to keep training."}
+        action={
+          <button
+            onClick={() =>
+              loginWithRedirect({
+                appState: { returnTo: window.location.pathname + window.location.search },
+              })
+            }
+            data-testid="button-sign-in"
+            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard press font-bold"
+          >
+            Sign in
+          </button>
+        }
+      />
+    );
+  }
+
+  const signOut = () => {
+    queryClient.clear();
+    void logout({ logoutParams: { returnTo: window.location.origin } });
+  };
+
+  return <ProfileLoader signOut={signOut}>{children}</ProfileLoader>;
+}
+
+function ProfileLoader({ signOut, children }: { signOut: (() => void) | null; children: React.ReactNode }) {
+  // No retries: a 401 or 403 will not fix itself and the user needs to see it
+  const { data: user, isLoading, isError } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+
+  if (isLoading) return <Splash />;
+
+  if (isError || !user) {
+    return (
+      <Screen
+        title="No access"
+        text="This account can't use the app. Sign out and try another one."
+        action={
+          signOut && (
+            <button
+              onClick={signOut}
+              data-testid="button-sign-out-denied"
+              className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface text-bp-ink shadow-hard press font-bold"
+            >
+              Sign out
+            </button>
+          )
+        }
+      />
+    );
+  }
+
+  return <ProfileContext.Provider value={{ user, signOut }}>{children}</ProfileContext.Provider>;
+}
+
+function Splash() {
+  return (
+    <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <Dumbbell className="w-8 h-8 text-bp-brand animate-pulse" aria-label="Loading" />
+    </div>
+  );
+}
+
+function Screen({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-background px-6">
+      <div className="w-full max-w-xs space-y-8">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-[14px] border-2 border-bp-outline bg-bp-brand shadow-hard flex items-center justify-center">
+            <Dumbbell className="w-7 h-7 text-bp-on-brand" />
+          </div>
+          <h1 className="text-[32px] leading-[34px] font-display font-extrabold tracking-[-0.03em]">{title}</h1>
+          <p className="text-sm text-bp-muted mt-1">{text}</p>
+        </div>
+        {action}
+      </div>
+    </div>
   );
 }
 
@@ -64,89 +143,6 @@ export function ProfileAvatar({ name, size = "md", active = false }: { name: str
       }`}
     >
       {initial}
-    </div>
-  );
-}
-
-export function NewProfileForm({ onCreated }: { onCreated: (user: UserRecord) => void }) {
-  const [name, setName] = useState("");
-  const queryClient = useQueryClient();
-  const createUser = useCreateUser({
-    mutation: {
-      onSuccess: (user) => {
-        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-        setName("");
-        onCreated(user);
-      },
-    },
-  });
-
-  const submit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    createUser.mutate({ data: { name: trimmed } });
-  };
-
-  return (
-    <div className="flex gap-2">
-      <label htmlFor="new-profile-name" className="sr-only">New profile name</label>
-      <input
-        id="new-profile-name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder="Name"
-        disabled={createUser.isPending}
-        data-testid="input-new-profile-name"
-        className="flex-1 min-w-0 h-12 px-3 text-[15px] bg-bp-surface border-2 border-bp-outline rounded-[10px] text-bp-ink placeholder:text-bp-muted"
-      />
-      <button
-        onClick={submit}
-        disabled={createUser.isPending || !name.trim()}
-        data-testid="button-create-profile"
-        aria-label="Create profile"
-        className="h-12 w-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-sm press flex items-center justify-center disabled:opacity-50"
-      >
-        <Plus className="w-5 h-5" strokeWidth={2.5} />
-      </button>
-    </div>
-  );
-}
-
-function ProfilePicker({
-  users,
-  onSelect,
-}: {
-  users: UserRecord[];
-  onSelect: (user: UserRecord) => void;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-background px-6">
-      <div className="w-full max-w-xs space-y-8">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-14 w-14 rounded-[14px] border-2 border-bp-outline bg-bp-brand shadow-hard flex items-center justify-center">
-            <Dumbbell className="w-7 h-7 text-bp-on-brand" />
-          </div>
-          <h1 className="text-[32px] leading-[34px] font-display font-extrabold tracking-[-0.03em]">Who's training?</h1>
-          <p className="text-sm text-bp-muted mt-1">Pick your profile to continue.</p>
-        </div>
-
-        <div className="space-y-2">
-          {users.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => onSelect(user)}
-              data-testid={`button-profile-${user.id}`}
-              className="w-full flex items-center gap-3 bg-bp-surface border-2 border-bp-outline rounded-[14px] shadow-hard press p-3 text-left"
-            >
-              <ProfileAvatar name={user.name} />
-              <span className="font-bold text-base">{user.name}</span>
-            </button>
-          ))}
-        </div>
-
-        <NewProfileForm onCreated={onSelect} />
-      </div>
     </div>
   );
 }

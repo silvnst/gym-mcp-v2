@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUpdateUser, getListUsersQueryKey } from "@workspace/api-client-react";
-import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, Check, X } from "lucide-react";
+import { useUpdateMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, LogOut, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useProfile } from "@/lib/profile";
 import { useTheme, type ThemeChoice } from "@/lib/theme";
-import { ProfileAvatar, NewProfileForm } from "@/components/profile-gate";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -82,9 +81,9 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "light", label: "Light" },
 ];
 
-/** Bottom sheet for switching profile and theme, opened from the Today header. */
+/** Bottom sheet for the profile name, theme and sign out, opened from the Today header. */
 export function ProfileSheet({ onClose }: { onClose: () => void }) {
-  const { user, users, switchUser } = useProfile();
+  const { user, signOut } = useProfile();
   const [theme, setTheme] = useTheme();
 
   return (
@@ -105,38 +104,7 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="space-y-2 max-h-56 overflow-y-auto no-scrollbar">
-          {users.map((u) => {
-            const isCurrent = u.id === user.id;
-            return (
-              <button
-                key={u.id}
-                onClick={() => {
-                  if (!isCurrent) switchUser(u.id);
-                  onClose();
-                }}
-                data-testid={`button-switch-profile-${u.id}`}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-[14px] p-3 text-left border-2 border-bp-outline",
-                  isCurrent ? "bg-bp-done" : "bg-bp-bg",
-                )}
-              >
-                <ProfileAvatar name={u.name} active={isCurrent} size="sm" />
-                <span className="font-bold flex-1">{u.name}</span>
-                {isCurrent && <Check className="w-5 h-5 shrink-0" aria-label="Current profile" />}
-              </button>
-            );
-          })}
-        </div>
-
-        <RenameProfile key={user.id} id={user.id} name={user.name} />
-
-        <NewProfileForm
-          onCreated={(created) => {
-            switchUser(created.id);
-            onClose();
-          }}
-        />
+        <RenameProfile key={user.id} name={user.name} />
 
         <div>
           <h3 id="theme-label" className="font-sans text-[13px] font-bold text-bp-muted mb-2">
@@ -159,16 +127,28 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         </div>
+
+        {signOut && (
+          <button
+            type="button"
+            onClick={signOut}
+            data-testid="button-sign-out"
+            className="w-full min-h-12 rounded-[10px] border-2 border-bp-outline font-bold text-sm flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" aria-hidden="true" />
+            Sign out
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function RenameProfile({ id, name }: { id: string; name: string }) {
+function RenameProfile({ name }: { name: string }) {
   const [value, setValue] = useState(name);
   const queryClient = useQueryClient();
-  const rename = useUpdateUser({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }) },
+  const rename = useUpdateMe({
+    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }) },
   });
   const trimmed = value.trim();
   const changed = trimmed.length > 0 && trimmed !== name;
@@ -178,7 +158,7 @@ function RenameProfile({ id, name }: { id: string; name: string }) {
       className="flex gap-2 items-end"
       onSubmit={(e) => {
         e.preventDefault();
-        if (changed) rename.mutate({ id, data: { name: trimmed } });
+        if (changed) rename.mutate({ data: { name: trimmed } });
       }}
     >
       <div className="flex-1 min-w-0">

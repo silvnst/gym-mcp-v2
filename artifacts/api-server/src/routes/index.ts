@@ -11,12 +11,12 @@ import { userContext } from "../middlewares/user-context.js";
 
 const router: IRouter = Router();
 
-// No user context needed for health checks and user management itself
+// Health checks stay public so Railway can probe them
 router.use(healthRouter);
-router.use(usersRouter);
 
-// Everything below is scoped to the acting user (X-User-Id header)
+// Everything below needs a valid Auth0 bearer token and is scoped to that user
 router.use(userContext);
+router.use(usersRouter);
 router.use(plansRouter);
 router.use(sessionsRouter);
 router.use(setsRouter);

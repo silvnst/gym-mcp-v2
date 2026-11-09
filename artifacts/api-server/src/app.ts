@@ -6,6 +6,7 @@ import fs from "node:fs";
 import router from "./routes/index.js";
 import { setupMcpRoutes } from "./mcp/server.js";
 import { logger } from "./lib/logger.js";
+import { protectedResourceMetadata } from "./lib/auth.js";
 
 const app: Express = express();
 
@@ -34,18 +35,20 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// MCP_SECRET guard: if set, the request must supply it as ?token=.
-// If unset, the guard is skipped (local dev only).
-app.use("/mcp", (req, res, next) => {
-  const secret = process.env["MCP_SECRET"];
-  const token = req.query["token"] as string | undefined;
-  if (secret && token !== secret) {
-    res.status(403).json({ error: "Forbidden" });
+// OAuth protected-resource metadata (RFC 9728). MCP clients read this after a
+// 401 to learn which Auth0 tenant issues tokens for /mcp.
+function sendResourceMetadata(_req: express.Request, res: express.Response) {
+  const metadata = protectedResourceMetadata();
+  if (!metadata) {
+    res.status(404).json({ error: "Authentication is not configured" });
     return;
   }
-  next();
-});
+  res.json(metadata);
+}
+app.get("/.well-known/oauth-protected-resource", sendResourceMetadata);
+app.get("/.well-known/oauth-protected-resource/mcp", sendResourceMetadata);
 
+// Auth is enforced inside the MCP routes (bearer token per request).
 setupMcpRoutes(app);
 
 // Locate the built frontend regardless of the working directory the server was

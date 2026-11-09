@@ -17,7 +17,8 @@ import {
   planExercises,
 } from "@workspace/db";
 import { logger } from "../lib/logger.js";
-import { resolveMcpUserId } from "../middlewares/user-context.js";
+import { getDefaultUserId, sendAuthError } from "../middlewares/user-context.js";
+import { authDisabled, bearerToken, userFromToken, wwwAuthenticate } from "../lib/auth.js";
 import {
   addDays,
   garminConfigured,
@@ -33,6 +34,7 @@ import {
 
 const transports = new Map<string, StreamableHTTPServerTransport>();
 const sessionExpiry = new Map<string, number>();
+const sessionUsers = new Map<string, string>();
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 setInterval(() => {
@@ -41,6 +43,7 @@ setInterval(() => {
     if (now > exp) {
       transports.delete(id);
       sessionExpiry.delete(id);
+      sessionUsers.delete(id);
       logger.info({ sessionId: id }, "MCP session evicted (TTL expired)");
     }
   }
@@ -1128,12 +1131,36 @@ export function setupMcpRoutes(app: Express): void {
   // Single endpoint handles POST (new session or message), GET (SSE stream), DELETE (close session)
   app.all("/mcp", async (req, res) => {
     try {
+      // Every request carries the Auth0 access token; the acting user comes from it.
+      let userId: string;
+      if (authDisabled()) {
+        userId = getDefaultUserId();
+      } else {
+        const token = bearerToken(req);
+        if (!token) {
+          res.set("WWW-Authenticate", wwwAuthenticate());
+          res.status(401).json({ error: "Authentication required" });
+          return;
+        }
+        try {
+          userId = (await userFromToken(token)).id;
+        } catch (err) {
+          sendAuthError(res, err);
+          return;
+        }
+      }
+
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
       if (sessionId) {
         const transport = transports.get(sessionId);
         if (!transport) {
           res.status(404).json({ error: "MCP session not found or expired" });
+          return;
+        }
+        // A session belongs to the user who opened it
+        if (sessionUsers.get(sessionId) !== userId) {
+          res.status(403).json({ error: "This MCP session belongs to another user" });
           return;
         }
         await transport.handleRequest(req, res, req.body);
@@ -1146,13 +1173,6 @@ export function setupMcpRoutes(app: Express): void {
         return;
       }
 
-      // Resolve acting user from ?user=<id or name>; defaults to the first user
-      const userId = await resolveMcpUserId(req.query["user"] as string | undefined);
-      if (!userId) {
-        res.status(403).json({ error: "Unknown user — pass ?user=<user id or name>" });
-        return;
-      }
-
       const newSessionId = randomUUID();
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => newSessionId,
@@ -1161,10 +1181,12 @@ export function setupMcpRoutes(app: Express): void {
       transport.onclose = () => {
         transports.delete(newSessionId);
         sessionExpiry.delete(newSessionId);
+        sessionUsers.delete(newSessionId);
         logger.info({ sessionId: newSessionId }, "MCP session closed");
       };
 
       transports.set(newSessionId, transport);
+      sessionUsers.set(newSessionId, userId);
       sessionExpiry.set(newSessionId, Date.now() + SESSION_TTL_MS);
       logger.info({ sessionId: newSessionId, userId }, "MCP session opened");
 

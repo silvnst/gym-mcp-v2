@@ -33,7 +33,7 @@ This is wired up in `.replit` under `[deployment.run]` so Replit runs it automat
 |---|---|---|
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `PORT` | Yes | Port the Express server listens on (use `8080` on Replit) |
-| `MCP_SECRET` | Recommended | If set, `/mcp` requires `?token=<value>` on every request — primary auth guard for the MCP endpoint |
+| `AUTH0_DOMAIN`, `AUTH0_AUDIENCE` | Yes | Auth0 login for the API and `/mcp`; see docs/auth.md |
 | `FRONTEND_ORIGIN` | No | Restricts CORS to a specific origin (e.g. `https://your-app.replit.app`); defaults to `*` |
 
 ## Stack
@@ -53,7 +53,7 @@ This is wired up in `.replit` under `[deployment.run]` so Replit runs it automat
 - `lib/api-spec/openapi.yaml` — source of truth for all REST API contracts
 - `lib/db/src/schema/index.ts` — Drizzle ORM schema (all 5 tables + relations)
 - `artifacts/api-server/src/routes/` — REST route handlers (plans, sessions, sets, health)
-- `artifacts/api-server/src/app.ts` — Express setup; MCP_SECRET query-param guard at lines 39–47
+- `artifacts/api-server/src/app.ts` — Express setup; OAuth protected-resource metadata for MCP
 - `artifacts/api-server/src/mcp/server.ts` — MCP server with all 12 tools
 
 ### Frontend
@@ -72,7 +72,7 @@ This is wired up in `.replit` under `[deployment.run]` so Replit runs it automat
 ## Architecture decisions
 
 - MCP uses Streamable HTTP transport (MCP spec 2025-03-26) at `POST /mcp` — required by Claude.ai remote connectors
-- MCP auth uses `MCP_SECRET` query-param guard: if the env var is set, every `/mcp` request must include `?token=<secret>`; if unset the endpoint is open (local dev only)
+- Auth uses Auth0 bearer tokens on `/api` and `/mcp` (see docs/auth.md); `AUTH_DISABLED=true` skips it for local development
 - A fresh `Server` instance from `@modelcontextprotocol/sdk` is created per connection — the SDK forbids connecting one `Server` to more than one transport simultaneously
 - Cascade deletes: plan → plan_exercises; session → session_exercises → sets
 - Finish button in active session is blocked via `useIsMutating()` to prevent navigating away before pending set saves flush
@@ -148,7 +148,7 @@ This is wired up in `.replit` under `[deployment.run]` so Replit runs it automat
 
 1. Go to **Claude.ai → Settings → Connectors → Add custom connector**
 2. Set the **Remote MCP server URL** to: `https://<deployed-host>/mcp`
-   - If `MCP_SECRET` is configured (recommended), append the token: `https://<deployed-host>/mcp?token=<your-secret>`
+   - Add the connector as `https://<deployed-host>/mcp` and sign in with Auth0 when prompted
 3. Save — Claude discovers all 12 tools immediately, no authorization step required
 
 **Example things to say to Claude:**

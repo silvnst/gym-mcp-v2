@@ -18,6 +18,9 @@ import { z } from "zod/v4";
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  // Auth0 subject (token `sub`) once the profile has been linked to a login
+  authSub: text("auth_sub").unique(),
+  email: text("email"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
