@@ -53,7 +53,11 @@ function Auth0Gate({ children }: { children: React.ReactNode }) {
     return (
       <Screen
         title="Gym tracker"
-        text={error ? "Signing in did not work. Try again." : "Sign in to keep training."}
+        text={
+          error
+            ? `Signing in did not work: ${error.message || error.name}`
+            : "Sign in to keep training."
+        }
         action={
           <button
             onClick={() =>
