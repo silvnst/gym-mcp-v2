@@ -63,9 +63,23 @@ const frontendDist = frontendDistCandidates.find((p) => fs.existsSync(p));
 
 if (frontendDist) {
   // Production: serve the built React app as static files
-  app.use(express.static(frontendDist));
+  // Hashed assets are cached for good; everything else (index.html, the service
+  // worker, the manifest) is revalidated so a new deploy shows up at once.
+  app.use(
+    express.static(frontendDist, {
+      setHeaders(res, filePath) {
+        const hashed = path.relative(frontendDist, filePath).split(path.sep)[0] === "assets";
+        res.setHeader("Cache-Control", hashed ? "public, max-age=31536000, immutable" : "no-cache");
+      },
+    }),
+  );
+  // An asset of an older build must be a 404, not index.html served as JavaScript
+  app.use("/assets", (_req, res) => {
+    res.status(404).end();
+  });
   // Express 5 requires "/{*path}" — plain "*" doesn't match multi-segment paths
   app.get("/{*path}", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(frontendDist, "index.html"));
   });
 } else if (process.env["NODE_ENV"] !== "production") {

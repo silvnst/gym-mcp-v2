@@ -17,6 +17,14 @@ Sign-in runs through **Auth0**; one Auth0 API protects both the web app and `/mc
 - Only emails in `AUTH_ALLOWED_EMAILS` or `AUTH_CLAIM_MAP` may sign in, unless `AUTH_ALLOW_ANY_USER=true`.
 - Data created before multi-user support is adopted by the default user on first boot (set `DEFAULT_USER_NAME` to control its name). The default user also owns the Garmin data.
 
+## Install as an app
+
+The web app is a PWA. On the phone, open it in the browser and choose **Add to Home Screen** (iOS: share menu, Android: browser menu). It then starts full screen with its own icon.
+
+- `artifacts/gym-tracker/public/sw.js` stores the app shell, so the app opens without a connection. Data still comes from the network: offline you see a "No connection" screen with a retry button.
+- `index.html`, `sw.js` and the manifest are served with `Cache-Control: no-cache`, hashed files under `/assets` are cached for a year. A new deploy shows up on the next start.
+- The installed app keeps its own storage, so you sign in once more after installing.
+
 ## Architecture
 
 pnpm workspace:

@@ -85,9 +85,30 @@ function Auth0Gate({ children }: { children: React.ReactNode }) {
 
 function ProfileLoader({ signOut, children }: { signOut: (() => void) | null; children: React.ReactNode }) {
   // No retries: a 401 or 403 will not fix itself and the user needs to see it
-  const { data: user, isLoading, isError } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
+  const { data: user, isLoading, isError, error, refetch, isFetching } = useGetMe({ query: { queryKey: getGetMeQueryKey(), retry: false } });
 
   if (isLoading) return <Splash />;
+
+  // Only a 401 or 403 means the account is refused; anything else is the connection or the server
+  const status = (error as { status?: number } | null)?.status;
+  if (isError && status !== 401 && status !== 403) {
+    return (
+      <Screen
+        title="No connection"
+        text="The app can't reach the server. Check your connection and try again."
+        action={
+          <button
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            data-testid="button-retry-profile"
+            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard press font-bold"
+          >
+            {isFetching ? "Trying" : "Try again"}
+          </button>
+        }
+      />
+    );
+  }
 
   if (isError || !user) {
     return (
