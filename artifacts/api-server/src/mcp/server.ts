@@ -36,16 +36,19 @@ import {
 const transports = new Map<string, StreamableHTTPServerTransport>();
 const sessionExpiry = new Map<string, number>();
 const sessionUsers = new Map<string, string>();
+// A session ends after this long without a request; every request renews it
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 setInterval(() => {
   const now = Date.now();
   for (const [id, exp] of sessionExpiry) {
     if (now > exp) {
+      const transport = transports.get(id);
       transports.delete(id);
       sessionExpiry.delete(id);
       sessionUsers.delete(id);
-      logger.info({ sessionId: id }, "MCP session evicted (TTL expired)");
+      void transport?.close().catch(() => undefined);
+      logger.info({ sessionId: id }, "MCP session evicted (idle for too long)");
     }
   }
 }, 60_000).unref();
@@ -1207,6 +1210,7 @@ export function setupMcpRoutes(app: Express): void {
           res.status(403).json({ error: "This MCP session belongs to another user" });
           return;
         }
+        sessionExpiry.set(sessionId, Date.now() + SESSION_TTL_MS);
         await transport.handleRequest(req, res, req.body);
         return;
       }

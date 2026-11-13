@@ -8,11 +8,11 @@ import {
   sessions,
   sessionExercises,
   sets,
-  type Session,
   type SessionExercise,
   type Set,
   type PlanExercise,
 } from "@workspace/db";
+import { intParam } from "../lib/query.js";
 
 const router: IRouter = Router();
 
@@ -23,7 +23,6 @@ function numOrNull(v: string | null | undefined): number | null {
 }
 
 type SessionExerciseWithSets = SessionExercise & { sets: Set[]; planExercise: PlanExercise | null };
-type SessionWithDetail = Session & { sessionExercises: SessionExerciseWithSets[] };
 type LastSetMap = Map<number, { weightKg: number | null; reps: number | null }>;
 
 function serializeSet(s: Set, lastBySetNumber?: LastSetMap) {
@@ -179,8 +178,8 @@ function buildSessionExerciseValues(
 
 router.get("/sessions", async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query["limit"] ?? 20), 100);
-    const offset = Number(req.query["offset"] ?? 0);
+    const limit = intParam(req.query["limit"], 20, 1, 100);
+    const offset = intParam(req.query["offset"], 0, 0, 1_000_000);
 
     const allSessions = await db.query.sessions.findMany({
       where: eq(sessions.userId, req.userId),
@@ -234,7 +233,8 @@ router.get("/sessions", async (req, res) => {
         };
       }),
     );
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to list sessions");
     res.status(500).json({ error: "Failed to list sessions" });
   }
 });
@@ -297,7 +297,8 @@ router.post("/sessions", async (req, res) => {
 
     const result = await getSessionWithDetail(sessionId, req.userId);
     res.status(201).json(result);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to create session");
     res.status(500).json({ error: "Failed to create session" });
   }
 });
@@ -310,7 +311,8 @@ router.get("/sessions/:id", async (req, res) => {
       return;
     }
     res.json(session);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to get session");
     res.status(500).json({ error: "Failed to get session" });
   }
 });
@@ -355,7 +357,8 @@ router.patch("/sessions/:id", async (req, res) => {
 
     const result = await getSessionWithDetail(req.params.id!, req.userId);
     res.json(result);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to update session");
     res.status(500).json({ error: "Failed to update session" });
   }
 });
@@ -401,7 +404,8 @@ router.patch("/sessions/:id/exercises/:exerciseId", async (req, res) => {
     });
 
     res.json(serializeSessionExercise(result as SessionExerciseWithSets));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to update session exercise");
     res.status(500).json({ error: "Failed to update session exercise" });
   }
 });
@@ -421,7 +425,8 @@ router.delete("/sessions/:id/exercises/:exerciseId", async (req, res) => {
 
     await db.delete(sessionExercises).where(eq(sessionExercises.id, req.params.exerciseId!));
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete session exercise");
     res.status(500).json({ error: "Failed to delete session exercise" });
   }
 });
@@ -465,7 +470,8 @@ router.post("/sessions/:id/exercises", async (req, res) => {
     });
 
     res.status(201).json(serializeSessionExercise(result as SessionExerciseWithSets));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to add exercise to session");
     res.status(500).json({ error: "Failed to add exercise to session" });
   }
 });
@@ -478,7 +484,8 @@ router.delete("/sessions/:id", async (req, res) => {
       return;
     }
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete session");
     res.status(500).json({ error: "Failed to delete session" });
   }
 });
@@ -528,7 +535,8 @@ router.post("/sessions/:id/sets", async (req, res) => {
       .returning();
 
     res.status(201).json(serializeSet(newSet));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to add set");
     res.status(500).json({ error: "Failed to add set" });
   }
 });

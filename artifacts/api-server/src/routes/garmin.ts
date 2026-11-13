@@ -9,6 +9,7 @@ import {
   localDate,
   syncGarmin,
 } from "../lib/garmin.js";
+import { intParam } from "../lib/query.js";
 
 const router: IRouter = Router();
 
@@ -40,7 +41,8 @@ router.get("/garmin/readiness", async (req, res) => {
     }
     const r = await getReadiness(req.userId);
     res.json(r ? { available: true, ...r } : { available: false });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to read readiness");
     res.status(500).json({ error: "Failed to read readiness" });
   }
 });
@@ -51,7 +53,7 @@ router.get("/garmin/activities", async (req, res) => {
       res.json([]);
       return;
     }
-    const days = Math.min(Math.max(Number(req.query["days"] ?? 14), 1), 365);
+    const days = intParam(req.query["days"], 14, 1, 365);
     const to = localDate();
     const rows = await getGarminActivities(req.userId, addDays(to, -(days - 1)), to);
     res.json(
@@ -71,7 +73,8 @@ router.get("/garmin/activities", async (req, res) => {
         trainingLoad: a.trainingLoad,
       })),
     );
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to list activities");
     res.status(500).json({ error: "Failed to list activities" });
   }
 });

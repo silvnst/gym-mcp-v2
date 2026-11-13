@@ -22,7 +22,8 @@ router.get("/users/me", async (req, res) => {
       return;
     }
     res.json(serializeUser(me));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to load profile");
     res.status(500).json({ error: "Failed to load profile" });
   }
 });
@@ -49,7 +50,8 @@ router.patch("/users/me", async (req, res) => {
       return;
     }
     res.json(serializeUser(updated));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to update profile");
     res.status(500).json({ error: "Failed to update profile" });
   }
 });

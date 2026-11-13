@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { classifyExercise, epley, MUSCLE_LABELS, type MuscleGroup } from "../lib/training.js";
+import { intParam } from "../lib/query.js";
 
 const router: IRouter = Router();
 
@@ -13,7 +14,7 @@ type SetRow = { date: string; name: string; reps: number | null; weight_kg: stri
  */
 router.get("/insights/bests", async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query["limit"] ?? 3), 20);
+    const limit = intParam(req.query["limit"], 3, 1, 20);
     const rows = await db.execute(sql`
       SELECT s.date::text AS date, se.name, st.reps, st.weight_kg
       FROM sets st
@@ -44,7 +45,8 @@ router.get("/insights/bests", async (req, res) => {
       .map(([name, v]) => ({ name, sessionCount: v.sessions.size, ...v.best! }));
 
     res.json(result);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch bests");
     res.status(500).json({ error: "Failed to fetch bests" });
   }
 });
@@ -55,7 +57,7 @@ router.get("/insights/bests", async (req, res) => {
  */
 router.get("/insights/muscle-sets", async (req, res) => {
   try {
-    const days = Math.min(Math.max(Number(req.query["days"] ?? 7), 1), 365);
+    const days = intParam(req.query["days"], 7, 1, 365);
     const rows = await db.execute(sql`
       SELECT se.name, COUNT(st.id)::int AS set_count
       FROM sets st
@@ -85,7 +87,8 @@ router.get("/insights/muscle-sets", async (req, res) => {
       push,
       pull,
     });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch muscle sets");
     res.status(500).json({ error: "Failed to fetch muscle sets" });
   }
 });

@@ -109,19 +109,6 @@ export function Notice({ tone = "warn", icon, children }: { tone?: "warn" | "tip
   );
 }
 
-export function StatTile({ label, value, unit, note }: { label: string; value: ReactNode; unit?: string; note?: ReactNode }) {
-  return (
-    <div className="bg-bp-surface rounded-[14px] px-3 py-2.5 flex flex-col gap-0.5 min-w-0">
-      <span className="text-xs text-bp-muted truncate">{label}</span>
-      <span className="font-bold text-[22px] leading-none tabular text-bp-ink">
-        {value}
-        {unit && <span className="text-xs font-medium text-bp-muted"> {unit}</span>}
-      </span>
-      {note && <span className="text-xs text-bp-muted truncate">{note}</span>}
-    </div>
-  );
-}
-
 /* ── Inputs ─────────────────────────────────────────────────────────────── */
 
 export function Stepper({

@@ -1,12 +1,13 @@
 import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { intParam } from "../lib/query.js";
 
 const router: IRouter = Router();
 
 router.get("/exercises/top", async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query["limit"] ?? 5), 20);
+    const limit = intParam(req.query["limit"], 5, 1, 20);
 
     const rows = await db.execute(sql`
       SELECT se.name, COUNT(DISTINCT se.session_id)::int AS session_count
@@ -24,7 +25,8 @@ router.get("/exercises/top", async (req, res) => {
         sessionCount: r["session_count"] as number,
       })),
     );
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch top exercises");
     res.status(500).json({ error: "Failed to fetch top exercises" });
   }
 });
@@ -89,7 +91,8 @@ router.get("/progress/:exerciseName", async (req, res) => {
         value: r["value"] as number,
       })),
     );
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch progress data");
     res.status(500).json({ error: "Failed to fetch progress data" });
   }
 });

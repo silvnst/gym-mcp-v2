@@ -7,7 +7,8 @@ const router: IRouter = Router();
 router.get("/trash", async (req, res) => {
   try {
     res.json(await listTrash(req.userId));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to list deleted items");
     res.status(500).json({ error: "Failed to list deleted items" });
   }
 });
@@ -21,7 +22,8 @@ router.post("/trash/:id/restore", async (req, res) => {
       return;
     }
     res.json(restored);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to restore");
     res.status(500).json({ error: "Failed to restore" });
   }
 });

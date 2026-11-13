@@ -35,8 +35,8 @@ async function findOwnedSet(setId: string, userId: string): Promise<Set | null> 
 }
 
 const updateSetSchema = z.object({
-  reps: z.number().int().nullable().optional(),
-  weightKg: z.number().nullable().optional(),
+  reps: z.number().int().min(0).max(10_000).nullable().optional(),
+  weightKg: z.number().min(0).max(100_000).nullable().optional(),
   setNumber: z.number().int().min(1).optional(),
   effort: z.enum(["easy", "right", "hard"]).nullable().optional(),
 });
@@ -83,7 +83,8 @@ router.put("/sets/:id", async (req, res) => {
       .returning();
 
     res.json(serializeSet(updated));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to update set");
     res.status(500).json({ error: "Failed to update set" });
   }
 });
@@ -97,7 +98,8 @@ router.delete("/sets/:id", async (req, res) => {
     }
     await db.delete(sets).where(eq(sets.id, req.params.id!));
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete set");
     res.status(500).json({ error: "Failed to delete set" });
   }
 });
