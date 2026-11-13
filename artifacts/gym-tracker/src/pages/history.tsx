@@ -70,7 +70,7 @@ export default function HistoryPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 rounded-[14px] border-2 border-bp-outline bg-bp-surface animate-pulse" />
+            <div key={i} className="h-20 rounded-[14px] bg-bp-surface animate-pulse" />
           ))}
         </div>
       ) : visible.length === 0 ? (
@@ -85,9 +85,9 @@ export default function HistoryPage() {
             if (row.kind === "gap")
               return (
                 <div key={`g${i}`} className="flex items-center gap-2.5 text-[13px] text-bp-muted py-1" aria-label={`${row.days} days without training`}>
-                  <span className="flex-1 border-t-2 border-dashed border-bp-muted/50" />
+                  <span className="flex-1 border-t border-bp-line" />
                   <span>{row.days} days off</span>
-                  <span className="flex-1 border-t-2 border-dashed border-bp-muted/50" />
+                  <span className="flex-1 border-t border-bp-line" />
                 </div>
               );
             const s = row.s;
@@ -102,12 +102,9 @@ export default function HistoryPage() {
                 key={s.id}
                 href={`/history/${s.id}`}
                 data-testid={`card-session-${s.id}`}
-                className={cn(
-                  "flex gap-3.5 items-center bg-bp-surface border-2 border-bp-outline rounded-[14px] p-3",
-                  i === rows.findIndex((r) => r.kind === "session") && "shadow-hard",
-                )}
+                className="flex gap-3.5 items-center bg-bp-surface rounded-[14px] p-3"
               >
-                <span className={cn("w-[52px] h-[52px] shrink-0 rounded-[10px] border-2 border-bp-outline flex flex-col items-center justify-center leading-none", colourOf(s.name))}>
+                <span className={cn("w-[52px] h-[52px] shrink-0 rounded-[10px] flex flex-col items-center justify-center leading-none", colourOf(s.name))}>
                   <span className="text-[11px] font-bold">{format(d, "MMM")}</span>
                   <span className="font-display font-extrabold text-[22px]">{format(d, "d")}</span>
                 </span>

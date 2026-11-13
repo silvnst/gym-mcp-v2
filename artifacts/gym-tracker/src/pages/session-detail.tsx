@@ -154,7 +154,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
   return (
     <>
       {/* Overview card */}
-      <div className="bg-card rounded-[14px] border-2 border-border p-5">
+      <div className="bg-card rounded-[14px] p-5">
         <h1 className="text-2xl font-display font-bold mb-2">{session.name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
           <span className="flex items-center gap-1.5">
@@ -170,7 +170,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">
               {totalVolume > 0 ? formatVolume(totalVolume) : "–"}
             </div>
@@ -178,13 +178,13 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
               Volume
             </div>
           </div>
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{totalSets}</div>
             <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Sets
             </div>
           </div>
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{exercises.length}</div>
             <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Exercises
@@ -193,7 +193,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
         </div>
 
         {session.notes && (
-          <div className="mt-4 pt-4 border-t border-border">
+          <div className="mt-4 pt-4 border-t border-bp-line">
             <div className="text-[13px] text-muted-foreground font-medium mb-1.5">
               Notes
             </div>
@@ -205,7 +205,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
       {/* Exercises */}
       <div className="space-y-4">
         {exercises.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-[14px] border-2 border-border">
+          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-[14px]">
             No exercises logged in this workout.
           </div>
         ) : (
@@ -218,7 +218,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                 exercise.targetReps != null || exercise.targetWeightKg != null || exercise.targetSets != null;
 
               return (
-                <div key={exercise.id} className="bg-card rounded-[14px] border-2 border-border p-4">
+                <div key={exercise.id} className="bg-card rounded-[14px] p-4">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
                     <div className="flex items-baseline gap-2 min-w-0">
                       <span className="text-xs font-bold text-muted-foreground">
@@ -237,14 +237,14 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                   {allSets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No sets logged.</p>
                   ) : (
-                    <div className="rounded-[10px] overflow-hidden border border-border/40">
+                    <div className="rounded-[10px] overflow-hidden border border-bp-line">
                       <div className="grid grid-cols-[2.5rem_1fr_1fr_1fr] text-[13px] font-bold text-muted-foreground bg-muted/50 px-3 py-2 gap-2">
                         <div className="text-center">Set</div>
                         <div className="text-right">kg</div>
                         <div className="text-right">Reps</div>
                         <div className="text-right">Vol</div>
                       </div>
-                      <div className="divide-y divide-border/30">
+                      <div className="divide-y divide-bp-line">
                         {allSets.map((set) => {
                           const vol =
                             set.reps != null && set.weightKg != null ? set.reps * set.weightKg : null;
@@ -349,7 +349,7 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
   return (
     <>
       {/* Session meta editor */}
-      <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-5 space-y-4">
+      <div className="bg-card rounded-[14px] p-5 space-y-4">
         <div className="space-y-1.5">
           <label className={labelCls}>Name</label>
           <Input
@@ -492,7 +492,7 @@ function ExerciseEditor({
   const sortedSets = exercise.sets.slice().sort((a, b) => a.setNumber - b.setNumber);
 
   return (
-    <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-4">
+    <div className="bg-card rounded-[14px] p-4">
       <div className="flex items-center gap-2 mb-3">
         <Input
           value={name}

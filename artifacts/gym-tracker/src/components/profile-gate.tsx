@@ -66,7 +66,7 @@ function Auth0Gate({ children }: { children: React.ReactNode }) {
               })
             }
             data-testid="button-sign-in"
-            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard press font-bold"
+            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-ink press font-bold"
           >
             Sign in
           </button>
@@ -101,7 +101,7 @@ function ProfileLoader({ signOut, children }: { signOut: (() => void) | null; ch
             onClick={() => void refetch()}
             disabled={isFetching}
             data-testid="button-retry-profile"
-            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard press font-bold"
+            className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-ink press font-bold"
           >
             {isFetching ? "Trying" : "Try again"}
           </button>
@@ -120,7 +120,7 @@ function ProfileLoader({ signOut, children }: { signOut: (() => void) | null; ch
             <button
               onClick={signOut}
               data-testid="button-sign-out-denied"
-              className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface text-bp-ink shadow-hard press font-bold"
+              className="w-full h-12 rounded-[10px] border-2 border-bp-outline bg-transparent text-bp-ink font-bold"
             >
               Sign out
             </button>
@@ -146,7 +146,7 @@ function Screen({ title, text, action }: { title: string; text: string; action?:
     <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-background px-6">
       <div className="w-full max-w-xs space-y-8">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-14 w-14 rounded-[14px] border-2 border-bp-outline bg-bp-brand shadow-hard flex items-center justify-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-[14px] bg-bp-brand flex items-center justify-center">
             <Dumbbell className="w-7 h-7 text-bp-on-brand" />
           </div>
           <h1 className="text-[32px] leading-[34px] font-display font-extrabold tracking-[-0.03em]">{title}</h1>
@@ -163,8 +163,8 @@ export function ProfileAvatar({ name, size = "md", active = false }: { name: str
   const sizeCls = size === "sm" ? "h-8 w-8 text-sm" : "h-11 w-11 text-lg";
   return (
     <div
-      className={`${sizeCls} rounded-[10px] border-2 border-bp-outline flex items-center justify-center font-display font-extrabold shrink-0 ${
-        active ? "bg-bp-brand text-bp-on-brand" : "bg-bp-surface text-bp-ink"
+      className={`${sizeCls} rounded-full flex items-center justify-center font-display font-extrabold shrink-0 ${
+        active ? "bg-bp-brand text-bp-on-brand" : "bg-bp-surface-2 text-bp-ink"
       }`}
     >
       {initial}

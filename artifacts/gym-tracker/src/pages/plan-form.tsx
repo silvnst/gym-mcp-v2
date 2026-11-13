@@ -154,7 +154,7 @@ export default function PlanFormPage() {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pb-4" noValidate>
       <div className="flex justify-between items-center gap-3 -mt-2">
-        <Link href="/plans" aria-label="Back to plans" title="Back" className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] border-2 border-bp-outline bg-bp-surface">
+        <Link href="/plans" aria-label="Back to plans" title="Back" className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] bg-bp-surface-2">
           <ArrowLeft className="w-[18px] h-[18px]" aria-hidden="true" />
         </Link>
         <h1 className="font-sans font-bold text-base">{isEditing ? "Edit plan" : "New plan"}</h1>
@@ -210,10 +210,8 @@ export default function PlanFormPage() {
               <Card
                 className={cn(
                   "space-y-3",
-                  joinedAbove && "rounded-t-none border-t-0",
+                  joinedAbove && "rounded-t-none border-t border-bp-line",
                   joinedBelow && "rounded-b-none",
-                  group && "bg-bp-surface",
-                  !joinedBelow && "shadow-hard",
                 )}
               >
                 {group && !joinedAbove && <p className="text-[13px] font-bold">Superset {group}</p>}

@@ -20,7 +20,7 @@ export function formatSet(weightKg: number | null | undefined, reps: number | nu
   const w = weightKg != null && weightKg > 0 ? formatKg(weightKg) : equipment === "bodyweight" ? "BW" : null;
   if (w == null && reps == null) return "";
   if (w == null) return `${reps} ${reps === 1 ? "rep" : "reps"}`;
-  if (reps == null) return `${w} kg`;
+  if (reps == null) return weightKg != null && weightKg > 0 ? `${w} kg` : "";
   return `${w} × ${reps}`;
 }
 

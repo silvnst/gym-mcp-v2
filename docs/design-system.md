@@ -1,6 +1,6 @@
 # Design system: Bumper
 
-Der Look der App heisst **Bumper**: wie Wettkampf-Hantelscheiben, mit kräftigen Konturen, harten Schatten und Farben nach Gewicht. Dunkel ist Standard, hell folgt der Systemeinstellung oder der Wahl im Profil-Menü.
+Der Look der App heisst **Bumper**: wie Wettkampf-Hantelscheiben, mit kräftigen Konturen, harten Schatten und Farben nach Gewicht. Seit November 2026 gilt die leise Variante: Kontur und Schatten gehören nur noch zu dem, was man antippen kann, alles andere ist ruhige Fläche. Dunkel ist Standard, hell folgt der Systemeinstellung oder der Wahl im Profil-Menü.
 
 Die Tokens leben in `artifacts/gym-tracker/src/index.css` (`--bp-*`), die Bausteine in `artifacts/gym-tracker/src/components/bumper.tsx`. Die visuelle Referenz ist das Design-System-Artifact «Gym Tracker» in claude.ai.
 
@@ -21,7 +21,8 @@ Die Tokens leben in `artifacts/gym-tracker/src/index.css` (`--bp-*`), die Bauste
 | `bp-bg` | `#111111` | `#f3f3f0` | Seitenhintergrund |
 | `bp-surface` | `#1c1c1c` | `#ffffff` | Karten, Sheets, Navigation |
 | `bp-surface-2` | `#2a2a2a` | `#ececea` | Stepper-Tasten, leere Wochentage |
-| `bp-outline` | `#f5f5f5` | `#111111` | 2px-Kontur auf allem |
+| `bp-outline` | `#f5f5f5` | `#111111` | 2px-Kontur auf Bedienelementen |
+| `bp-line` | `#333333` | `#dededa` | 1px-Trennlinie zwischen Zeilen und über der Navigation |
 | `bp-ink` | `#f5f5f5` | `#111111` | Text |
 | `bp-muted` | `#b3b3b3` | `#4d4d4d` | Sekundärtext |
 | `bp-brand` | `#ffd60a` | `#ffd60a` | Die eine Aktionsfarbe (15-kg-Scheibe), nur als Fläche |
@@ -36,8 +37,10 @@ Alle Text-Paare erreichen 4.5:1, Konturen und Diagrammfarben 3:1.
 
 ## Form
 
-- **Konturen tragen die Form:** `border-2 border-bp-outline` auf Karten, Buttons, Zellen, Scheiben.
-- **Harte Schatten:** Karten mit Fokus und die Hauptaktion `shadow-hard` (4px Versatz, im Dunkeln gelb), Buttons `shadow-hard-sm`. Mit `press` fällt der Schatten beim Drücken weg und das Element rückt nach.
+- **Kontur heisst antippbar:** `border-2 border-bp-outline` nur auf Buttons, Chips, Eingabefeldern und dem gerade aktiven Satz. Karten, Kacheln, Listenzeilen, Hinweise und Sheets sind Flächen in `bp-surface` ohne Rand.
+- **Ein harter Schatten pro Screen:** nur die gelbe Hauptaktion trägt `shadow-hard-ink` (kleine gelbe Buttons `shadow-hard-sm`). Mit `press` fällt der Schatten beim Drücken weg und das Element rückt nach. Karten haben keinen Schatten.
+- Symbol-Buttons ohne Text sind gefüllte Flächen in `bp-surface-2`, ohne Kontur.
+- Trennen mit Abstand, sonst mit `border-bp-line` (1px). Keine 2px-Linien unter Kopfzeilen oder über der Navigation.
 - Radien: Zellen und Buttons 10px, Karten und Hauptaktion 14px, Sheets 20px oben.
 - Touch-Ziele mindestens 44px, Stepper und Zellen 48px, Hauptaktion 56px.
 
@@ -50,5 +53,7 @@ Alle Text-Paare erreichen 4.5:1, Konturen und Diagrammfarben 3:1.
 
 - Eine gelbe Hauptaktion pro Screen, unten und mit dem Daumen erreichbar.
 - Während einer Session keine Navigation, kein Pausen-Timer. Oben Zeit und *Finish*.
-- Supersets erscheinen als eine Karte, die Hauptaktion nennt die nächste Übung.
+- Supersets laufen rundenweise auf einem Screen: jede Übung der Runde als Karte mit eigenem Gewicht und eigenen Wiederholungen, darunter *Save round*. Übungen ohne Gewicht zeigen nur die Wiederholungen über die ganze Breite.
+- Readiness ist eine Zeile mit Farbpunkt; die Details klappen auf. An einem Tag mit Warnung ist sie von Anfang an offen.
+- Was getippt, aber noch nicht gespeichert ist, bleibt bei einem Neuladen erhalten.
 - Nach jedem Satz die optionale Einschätzung *Too easy*, *Just right*, *Too hard*; daraus der Vorschlag für den nächsten Satz.

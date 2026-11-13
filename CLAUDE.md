@@ -23,4 +23,4 @@ Personal gym tracker with a React frontend, an Express API and an MCP server, de
 
 ## Design
 
-Follow `docs/design-system.md` (Bumper). In short: English UI in sentence case, no em dashes or middle dots in UI text, metric only, DM Sans with tabular figures for numbers, 2px outlines, hard shadows, one yellow main action per screen. Use the pieces in `artifacts/gym-tracker/src/components/bumper.tsx` and the `bp-*` colour tokens.
+Follow `docs/design-system.md` (Bumper). In short: English UI in sentence case, no em dashes or middle dots in UI text, metric only, DM Sans with tabular figures for numbers, 2px outlines only on things you can tap, cards as plain surfaces, one yellow main action per screen with the only hard shadow. Use the pieces in `artifacts/gym-tracker/src/components/bumper.tsx` and the `bp-*` colour tokens.

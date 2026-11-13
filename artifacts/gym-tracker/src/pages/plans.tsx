@@ -30,11 +30,11 @@ export default function PlansPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2].map((i) => (
-            <div key={i} className="h-36 rounded-[14px] border-2 border-bp-outline bg-bp-surface animate-pulse" />
+            <div key={i} className="h-36 rounded-[14px] bg-bp-surface animate-pulse" />
           ))}
         </div>
       ) : !plans || plans.length === 0 ? (
-        <Card shadow className="space-y-3">
+        <Card className="space-y-3">
           <p className="font-display font-extrabold text-[22px]">No plans yet</p>
           <p className="text-sm text-bp-muted">A plan is a list of exercises with sets, reps and weights. Group two exercises to do them as a superset.</p>
           <Link href="/plans/new" className="inline-flex items-center justify-center min-h-12 px-5 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-sm press font-bold">
@@ -63,7 +63,7 @@ export default function PlansPage() {
                       data-testid={`button-edit-plan-${plan.id}`}
                       aria-label={`Edit ${cleanName(plan.name)}`}
                       title="Edit plan"
-                      className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] border-2 border-bp-outline"
+                      className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] bg-bp-surface-2"
                     >
                       <Pencil className="w-4 h-4" aria-hidden="true" />
                     </Link>
@@ -72,7 +72,7 @@ export default function PlansPage() {
                     {groups.map((g, i) => (
                       <li key={i} className="flex gap-2 items-baseline">
                         {g.group && g.items.length > 1 ? (
-                          <span className="shrink-0 text-[11px] font-bold px-1.5 rounded border-2 border-bp-outline leading-4">{g.group}</span>
+                          <span className="shrink-0 text-[11px] font-bold px-1.5 rounded bg-bp-surface-2 leading-5">{g.group}</span>
                         ) : (
                           <span className="shrink-0 w-[22px]" aria-hidden="true" />
                         )}
