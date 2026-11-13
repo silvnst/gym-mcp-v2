@@ -14,6 +14,7 @@ import SessionPage from "@/pages/session";
 import HistoryPage from "@/pages/history";
 import ProgressPage from "@/pages/progress";
 import SessionDetailPage from "@/pages/session-detail";
+import TrashPage from "@/pages/trash";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ function Router() {
         <Route path="/session/:id" component={SessionPage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/history/:id" component={SessionDetailPage} />
+        <Route path="/trash" component={TrashPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

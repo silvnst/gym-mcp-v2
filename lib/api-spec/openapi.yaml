@@ -570,6 +570,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/MuscleSets"
 
+  /trash:
+    get:
+      operationId: listTrash
+      tags: [trash]
+      summary: Deleted plans and workouts that can still be restored, newest first
+      responses:
+        "200":
+          description: Items in the trash
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrashItem"
+
+  /trash/{id}/restore:
+    post:
+      operationId: restoreTrashItem
+      tags: [trash]
+      summary: Restore a deleted plan or workout with everything it contained
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: What was restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoredItem"
+        "404":
+          description: Not in the trash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /garmin/status:
     get:
       operationId: getGarminStatus
@@ -725,6 +765,46 @@ components:
           type: boolean
       required:
         - success
+
+    TrashItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Id of the deleted plan or workout
+        kind:
+          type: string
+          enum: [session, plan]
+        name:
+          type: string
+        deletedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the item is removed for good
+      required:
+        - id
+        - kind
+        - name
+        - deletedAt
+        - expiresAt
+
+    RestoredItem:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [session, plan]
+        name:
+          type: string
+      required:
+        - id
+        - kind
+        - name
 
     UserRecord:
       type: object

@@ -477,6 +477,33 @@ export const GetMuscleSetsResponse = zod.object({
 
 
 /**
+ * @summary Deleted plans and workouts that can still be restored, newest first
+ */
+export const ListTrashResponseItem = zod.object({
+  "id": zod.string().describe('Id of the deleted plan or workout'),
+  "kind": zod.enum(['session', 'plan']),
+  "name": zod.string(),
+  "deletedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().describe('When the item is removed for good')
+})
+export const ListTrashResponse = zod.array(ListTrashResponseItem)
+
+
+/**
+ * @summary Restore a deleted plan or workout with everything it contained
+ */
+export const RestoreTrashItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RestoreTrashItemResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['session', 'plan']),
+  "name": zod.string()
+})
+
+
+/**
  * @summary Whether Garmin is connected to this profile and how the last sync went
  */
 export const GetGarminStatusResponse = zod.object({

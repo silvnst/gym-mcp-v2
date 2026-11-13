@@ -17,6 +17,7 @@ import {
   planExercises,
 } from "@workspace/db";
 import { logger } from "../lib/logger.js";
+import { listTrash, restoreFromTrash, trashPlan, trashSession, TRASH_DAYS } from "../lib/trash.js";
 import { getDefaultUserId, sendAuthError } from "../middlewares/user-context.js";
 import { authDisabled, bearerToken, userFromToken, wwwAuthenticate } from "../lib/auth.js";
 import {
@@ -128,6 +129,10 @@ const updateSessionArgsSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD").optional(),
   notes: z.string().nullable().optional(),
   duration_min: z.number().int().min(0).max(24 * 60).nullable().optional(),
+});
+
+const restoreDeletedArgsSchema = z.object({
+  id: z.string().uuid(),
 });
 
 const deleteSessionArgsSchema = z.object({
@@ -361,7 +366,7 @@ function createMcpServer(userId: string): Server {
       {
         name: "delete_plan",
         description:
-          "Permanently deletes a workout plan and its exercises. Sessions that used the plan keep their recorded data.",
+          "Deletes a workout plan and its exercises. Sessions that used the plan keep their recorded data. The plan moves to the trash and can be brought back with restore_deleted for 30 days.",
         annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
         inputSchema: {
           type: "object",
@@ -441,7 +446,7 @@ function createMcpServer(userId: string): Server {
       {
         name: "delete_session",
         description:
-          "Permanently deletes a session and all its exercises and sets. This cannot be undone.",
+          "Deletes a session with its exercises and sets. It moves to the trash and can be brought back with restore_deleted for 30 days; after that it is gone for good.",
         annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
         inputSchema: {
           type: "object",
@@ -449,6 +454,24 @@ function createMcpServer(userId: string): Server {
             session_id: { type: "string", description: "The session ID to delete." },
           },
           required: ["session_id"],
+        },
+      },
+      {
+        name: "list_deleted",
+        description: "Lists the plans and sessions in the trash, newest first, with the date each one is removed for good.",
+        annotations: { readOnlyHint: true },
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "restore_deleted",
+        description: "Restores a deleted plan or session from the trash, with everything it contained. Use list_deleted to find the id.",
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The id of the deleted plan or session." },
+          },
+          required: ["id"],
         },
       },
     ],
@@ -926,19 +949,14 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const existing = await db.query.plans.findFirst({
-            where: and(eq(plans.id, parsed.data.plan_id), eq(plans.userId, userId)),
-          });
-          if (!existing) {
+          if (!(await trashPlan(userId, parsed.data.plan_id))) {
             return {
               content: [{ type: "text", text: `Error: Plan "${parsed.data.plan_id}" not found` }],
               isError: true,
             };
           }
 
-          await db.delete(plans).where(eq(plans.id, parsed.data.plan_id));
-
-          const result = { success: true };
+          const result = { success: true, restorable_for_days: TRASH_DAYS };
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,
@@ -1047,20 +1065,46 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const existing = await db.query.sessions.findFirst({
-            where: and(eq(sessions.id, parsed.data.session_id), eq(sessions.userId, userId)),
-          });
-
-          if (!existing) {
+          if (!(await trashSession(userId, parsed.data.session_id))) {
             return {
               content: [{ type: "text", text: `Error: Session "${parsed.data.session_id}" not found` }],
               isError: true,
             };
           }
 
-          await db.delete(sessions).where(eq(sessions.id, parsed.data.session_id));
+          const result = { success: true, restorable_for_days: TRASH_DAYS };
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            structuredContent: result,
+          };
+        }
 
-          const result = { success: true };
+        case "list_deleted": {
+          const result = { items: await listTrash(userId) };
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            structuredContent: result,
+          };
+        }
+
+        case "restore_deleted": {
+          const parsed = restoreDeletedArgsSchema.safeParse(args ?? {});
+          if (!parsed.success) {
+            return {
+              content: [{ type: "text", text: `Error: invalid arguments — ${parsed.error.message}` }],
+              isError: true,
+            };
+          }
+
+          const restored = await restoreFromTrash(userId, parsed.data.id);
+          if (!restored) {
+            return {
+              content: [{ type: "text", text: `Error: Nothing with the id "${parsed.data.id}" is in the trash` }],
+              isError: true,
+            };
+          }
+
+          const result = { success: true, ...restored };
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,

@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { ensureUsersBootstrap } from "./middlewares/user-context";
 import { startGarminSync } from "./lib/garmin";
 import { assertAuthConfigured } from "./lib/auth";
+import { startTrashPurge } from "./lib/trash";
 
 // Railway (and most PaaS hosts) inject PORT; fall back to 8080 for local dev.
 const port = Number(process.env["PORT"] ?? 8080);
@@ -24,6 +25,7 @@ async function main() {
 
     logger.info({ port }, "Server listening");
     startGarminSync();
+    startTrashPurge();
   });
 }
 

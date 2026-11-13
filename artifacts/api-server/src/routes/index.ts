@@ -7,6 +7,7 @@ import setsRouter from "./sets.js";
 import progressRouter from "./progress.js";
 import insightsRouter from "./insights.js";
 import garminRouter from "./garmin.js";
+import trashRouter from "./trash.js";
 import { userContext } from "../middlewares/user-context.js";
 
 const router: IRouter = Router();
@@ -23,5 +24,6 @@ router.use(setsRouter);
 router.use(progressRouter);
 router.use(insightsRouter);
 router.use(garminRouter);
+router.use(trashRouter);
 
 export default router;

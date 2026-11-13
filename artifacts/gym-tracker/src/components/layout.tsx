@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateMe, getGetMeQueryKey } from "@workspace/api-client-react";
-import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, LogOut, X } from "lucide-react";
+import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, LogOut, Trash2, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useProfile } from "@/lib/profile";
 import { useTheme, type ThemeChoice } from "@/lib/theme";
@@ -120,6 +120,16 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         </div>
+
+        <Link
+          href="/trash"
+          onClick={onClose}
+          data-testid="link-trash"
+          className="w-full min-h-12 rounded-[10px] border-2 border-bp-outline font-bold text-sm flex items-center justify-center gap-2"
+        >
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
+          Recently deleted
+        </Link>
 
         {signOut && (
           <button

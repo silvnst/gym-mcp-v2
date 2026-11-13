@@ -40,6 +40,7 @@ import type {
   PlanWithExercises,
   ProgressDataPoint,
   Readiness,
+  RestoredItem,
   SessionExerciseWithSets,
   SessionSummary,
   SessionWithDetail,
@@ -47,6 +48,7 @@ import type {
   SuccessResponse,
   SyncGarminBody,
   TopExercise,
+  TrashItem,
   UpdateSessionBody,
   UpdateSessionExerciseBody,
   UpdateSetBody,
@@ -1662,6 +1664,153 @@ export function useGetMuscleSets<TData = Awaited<ReturnType<typeof getMuscleSets
 
 
 
+
+export const getListTrashUrl = () => {
+
+
+
+
+  return `/api/trash`
+}
+
+/**
+ * @summary Deleted plans and workouts that can still be restored, newest first
+ */
+export const listTrash = async ( options?: RequestInit): Promise<TrashItem[]> => {
+
+  return customFetch<TrashItem[]>(getListTrashUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTrashQueryKey = () => {
+    return [
+    `/api/trash`
+    ] as const;
+    }
+
+
+export const getListTrashQueryOptions = <TData = Awaited<ReturnType<typeof listTrash>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrash>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTrashQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrash>>> = ({ signal }) => listTrash({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrash>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTrashQueryResult = NonNullable<Awaited<ReturnType<typeof listTrash>>>
+export type ListTrashQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Deleted plans and workouts that can still be restored, newest first
+ */
+
+export function useListTrash<TData = Awaited<ReturnType<typeof listTrash>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrash>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTrashQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRestoreTrashItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/trash/${id}/restore`
+}
+
+/**
+ * @summary Restore a deleted plan or workout with everything it contained
+ */
+export const restoreTrashItem = async (id: string, options?: RequestInit): Promise<RestoredItem> => {
+
+  return customFetch<RestoredItem>(getRestoreTrashItemUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRestoreTrashItemMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTrashItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreTrashItem>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['restoreTrashItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreTrashItem>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreTrashItem(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreTrashItemMutationResult = NonNullable<Awaited<ReturnType<typeof restoreTrashItem>>>
+
+    export type RestoreTrashItemMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Restore a deleted plan or workout with everything it contained
+ */
+export const useRestoreTrashItem = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTrashItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreTrashItem>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRestoreTrashItemMutationOptions(options));
+    }
 
 export const getGetGarminStatusUrl = () => {
 

@@ -85,7 +85,9 @@ https://<your-app>.up.railway.app/mcp
 
 The client discovers Auth0 from the server's OAuth metadata and opens a sign-in window; no token goes into the URL.
 
-It speaks Streamable HTTP and exposes read tools (`get_history`, `get_session_detail`, `get_plans`, `get_prs`, `get_volume_by_week`, `get_exercise_history`, `get_training_context`) and write tools (`create_plan`, `update_plan`, `delete_plan`, `log_session`, `update_session`, `delete_session`).
+It speaks Streamable HTTP and exposes read tools (`get_history`, `get_session_detail`, `get_plans`, `get_prs`, `get_volume_by_week`, `get_exercise_history`, `get_training_context`) and write tools (`create_plan`, `update_plan`, `delete_plan`, `log_session`, `update_session`, `delete_session`, `list_deleted`, `restore_deleted`).
+
+Deleting a plan or a workout, in the app or through MCP, moves it to the trash (`trash` table, a snapshot of the rows). It can be restored for 30 days from **Recently deleted** in the profile menu or with `restore_deleted`; after that the server removes it for good.
 
 ## Local development
 

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { trashSession } from "../lib/trash.js";
 import {
   db,
   plans,
@@ -471,14 +472,11 @@ router.post("/sessions/:id/exercises", async (req, res) => {
 
 router.delete("/sessions/:id", async (req, res) => {
   try {
-    const existing = await db.query.sessions.findFirst({
-      where: and(eq(sessions.id, req.params.id!), eq(sessions.userId, req.userId)),
-    });
-    if (!existing) {
+    // Goes to the trash and can be restored from there (see lib/trash.ts)
+    if (!(await trashSession(req.userId, req.params.id!))) {
       res.status(404).json({ error: "Session not found" });
       return;
     }
-    await db.delete(sessions).where(eq(sessions.id, req.params.id!));
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Failed to delete session" });

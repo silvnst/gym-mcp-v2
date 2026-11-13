@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useRestore } from "@/hooks/use-restore";
 import { BpButton, Card } from "@/components/bumper";
 import { cleanName, guessEquipment } from "@/lib/training";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ export default function PlanFormPage() {
   const planId = params.id as string | undefined;
   const isEditing = !!planId;
   const { toast } = useToast();
+  const { offerUndo } = useRestore();
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -107,10 +109,11 @@ export default function PlanFormPage() {
     });
   }, [existingPlan]);
 
-  const done = (title: string) => {
+  const done = (title: string, undoId?: string) => {
     queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
     if (planId) queryClient.invalidateQueries({ queryKey: getGetPlanQueryKey(planId) });
-    toast({ title });
+    if (undoId) offerUndo(undoId, title);
+    else toast({ title });
     setLocation("/plans");
   };
 
@@ -139,7 +142,7 @@ export default function PlanFormPage() {
     deletePlan.mutate(
       { id: planId },
       {
-        onSuccess: () => done("Plan deleted"),
+        onSuccess: () => done("Plan deleted", planId),
         onError: () => toast({ title: "Plan not deleted", variant: "destructive" }),
       },
     );

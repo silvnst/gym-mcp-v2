@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useRestore } from "@/hooks/use-restore";
 import { formatDuration, formatVolume } from "@/lib/utils";
 
 export default function SessionDetailPage() {
@@ -30,6 +31,7 @@ export default function SessionDetailPage() {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { offerUndo } = useRestore();
 
   const { data: session, isLoading } = useGetSession(params.id as string, {
     query: {
@@ -43,7 +45,7 @@ export default function SessionDetailPage() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-        toast({ title: "Workout deleted" });
+        offerUndo(params.id as string, "Workout deleted");
         setLocation("/history");
       },
       onError: () => {
