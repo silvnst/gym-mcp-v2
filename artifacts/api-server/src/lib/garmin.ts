@@ -7,8 +7,9 @@
  * pull-only, so the server syncs on boot, on a timer and on demand.
  *
  * Every profile can connect its own Garmin account: the key is stored encrypted
- * in users.garmin_key. The older server-wide GARMIN_API_KEY still works for one
- * profile (GARMIN_USER_ID if set, else the oldest profile) that has no own key.
+ * in users.garmin_key. An older server-wide GARMIN_API_KEY is moved into its
+ * owner's profile at boot (GARMIN_USER_ID if set, else the oldest profile) and
+ * only serves as a fallback until then.
  */
 import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db, garminActivities, garminDays, users } from "@workspace/db";
@@ -569,9 +570,26 @@ async function syncAll(days?: number): Promise<void> {
   }
 }
 
+/**
+ * Moves the server-wide GARMIN_API_KEY into its owner's profile, encrypted like
+ * every other key. Runs at boot; once it has run, the variable can be removed.
+ */
+async function adoptServerKey(): Promise<void> {
+  const owner = legacyOwner();
+  if (!owner || !secretsAvailable()) return;
+  try {
+    const [row] = await db.select({ garminKey: users.garminKey }).from(users).where(eq(users.id, owner));
+    if (!row || (row.garminKey && decryptSecret(row.garminKey))) return;
+    await db.update(users).set({ garminKey: encryptSecret(process.env["GARMIN_API_KEY"]!.trim()) }).where(eq(users.id, owner));
+    logger.info({ userId: owner }, "Garmin key moved from GARMIN_API_KEY into the profile; the variable can be removed now");
+  } catch (err) {
+    logger.error({ err }, "Could not move GARMIN_API_KEY into the profile");
+  }
+}
+
 export function startGarminSync(): void {
   // A full window on every boot keeps late-arriving watch data from slipping through
-  void syncAll(BACKFILL_DAYS);
+  void adoptServerKey().then(() => syncAll(BACKFILL_DAYS));
   setInterval(() => void syncAll(), INTERVAL_MS).unref();
 }
 
