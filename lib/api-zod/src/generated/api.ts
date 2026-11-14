@@ -18,36 +18,23 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary List all user profiles
+ * @summary Get the signed-in user's profile
  */
-export const ListUsersResponseItem = zod.object({
+export const GetMeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "createdAt": zod.string()
 })
-export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
 
 /**
- * @summary Create a user profile
+ * @summary Rename the signed-in user's profile
  */
-export const CreateUserBody = zod.object({
+export const UpdateMeBody = zod.object({
   "name": zod.string()
 })
 
-
-/**
- * @summary Rename a user profile
- */
-export const UpdateUserParams = zod.object({
-  "id": zod.coerce.string()
-})
-
-export const UpdateUserBody = zod.object({
-  "name": zod.string()
-})
-
-export const UpdateUserResponse = zod.object({
+export const UpdateMeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "createdAt": zod.string()
@@ -486,6 +473,33 @@ export const GetMuscleSetsResponse = zod.object({
 })),
   "push": zod.number(),
   "pull": zod.number()
+})
+
+
+/**
+ * @summary Deleted plans and workouts that can still be restored, newest first
+ */
+export const ListTrashResponseItem = zod.object({
+  "id": zod.string().describe('Id of the deleted plan or workout'),
+  "kind": zod.enum(['session', 'plan']),
+  "name": zod.string(),
+  "deletedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().describe('When the item is removed for good')
+})
+export const ListTrashResponse = zod.array(ListTrashResponseItem)
+
+
+/**
+ * @summary Restore a deleted plan or workout with everything it contained
+ */
+export const RestoreTrashItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RestoreTrashItemResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['session', 'plan']),
+  "name": zod.string()
 })
 
 

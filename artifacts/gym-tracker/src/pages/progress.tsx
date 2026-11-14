@@ -36,7 +36,7 @@ function StrengthChart() {
     { query: { enabled: !!active, queryKey: ["/api/progress", active, "e1rm"] } },
   );
 
-  if (isLoading) return <div className="h-72 rounded-[14px] border-2 border-bp-outline bg-bp-surface animate-pulse" />;
+  if (isLoading) return <div className="h-72 rounded-[14px] bg-bp-surface animate-pulse" />;
   if (!active) {
     return (
       <Card>
@@ -62,7 +62,7 @@ function StrengthChart() {
         ))}
       </div>
 
-      <Card shadow className="space-y-2.5">
+      <Card className="space-y-2.5">
         <div className="flex justify-between items-baseline gap-3">
           <h2 className="font-sans text-sm font-bold">Estimated 1RM</h2>
           {latest != null && (
@@ -132,7 +132,7 @@ function MuscleBalance() {
                 return (
                   <li key={m.key} className="grid grid-cols-[104px_1fr_32px] gap-2 items-center">
                     <span className="truncate">{m.label}</span>
-                    <span className="h-3.5 border-2 border-bp-outline rounded box-border overflow-hidden" aria-hidden="true">
+                    <span className="h-3.5 rounded bg-bp-surface-2 overflow-hidden" aria-hidden="true">
                       <span className={cn("block h-full", low ? "bg-bp-data-2" : "bg-bp-brand")} style={{ width: `${Math.min(100, (weekly / max) * 100)}%` }} />
                     </span>
                     <span className="text-right font-bold tabular">{formatKg(weekly)}</span>
@@ -149,9 +149,9 @@ function MuscleBalance() {
       {total > 0 && (
         <div className="space-y-1.5">
           <h3 className="font-sans text-sm font-bold">Push and pull</h3>
-          <div className="flex h-[34px] border-2 border-bp-outline rounded-[10px] overflow-hidden text-[13px] font-bold">
+          <div className="flex h-[34px] rounded-[10px] overflow-hidden text-[13px] font-bold">
             {data!.push > 0 && (
-              <div className="bg-bp-data-2 text-white flex items-center px-2.5 border-r-2 border-bp-outline" style={{ width: `${(data!.push / total) * 100}%` }}>
+              <div className="bg-bp-data-2 text-white flex items-center px-2.5" style={{ width: `${(data!.push / total) * 100}%` }}>
                 Push {data!.push}
               </div>
             )}
@@ -190,7 +190,7 @@ function WatchActivities() {
         {rows.length === 0 ? (
           <p className="text-sm text-bp-muted">No activities recorded on the watch in the last 4 weeks.</p>
         ) : (
-          <ul className="divide-y-2 divide-bp-surface-2">
+          <ul className="divide-y divide-bp-line">
             {rows.map(([type, t]) => (
               <li key={type} className="flex justify-between items-baseline gap-3 py-2 first:pt-0 last:pb-0">
                 <span className="min-w-0">

@@ -37,55 +37,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /users:
+  /users/me:
     get:
-      operationId: listUsers
+      operationId: getMe
       tags: [users]
-      summary: List all user profiles
+      summary: Get the signed-in user's profile
       responses:
         "200":
-          description: List of users
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserRecord"
-    post:
-      operationId: createUser
-      tags: [users]
-      summary: Create a user profile
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateUserBody"
-      responses:
-        "201":
-          description: Created user
+          description: The signed-in user
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserRecord"
-        "400":
-          description: Validation error
+        "401":
+          description: Missing or invalid access token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  /users/{id}:
     patch:
-      operationId: updateUser
+      operationId: updateMe
       tags: [users]
-      summary: Rename a user profile
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Rename the signed-in user's profile
       requestBody:
         required: true
         content:
@@ -99,6 +72,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -591,6 +570,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/MuscleSets"
 
+  /trash:
+    get:
+      operationId: listTrash
+      tags: [trash]
+      summary: Deleted plans and workouts that can still be restored, newest first
+      responses:
+        "200":
+          description: Items in the trash
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrashItem"
+
+  /trash/{id}/restore:
+    post:
+      operationId: restoreTrashItem
+      tags: [trash]
+      summary: Restore a deleted plan or workout with everything it contained
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: What was restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoredItem"
+        "404":
+          description: Not in the trash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /garmin/status:
     get:
       operationId: getGarminStatus
@@ -746,6 +765,46 @@ components:
           type: boolean
       required:
         - success
+
+    TrashItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Id of the deleted plan or workout
+        kind:
+          type: string
+          enum: [session, plan]
+        name:
+          type: string
+        deletedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the item is removed for good
+      required:
+        - id
+        - kind
+        - name
+        - deletedAt
+        - expiresAt
+
+    RestoredItem:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [session, plan]
+        name:
+          type: string
+      required:
+        - id
+        - kind
+        - name
 
     UserRecord:
       type: object

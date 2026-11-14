@@ -17,7 +17,9 @@ import {
   planExercises,
 } from "@workspace/db";
 import { logger } from "../lib/logger.js";
-import { resolveMcpUserId } from "../middlewares/user-context.js";
+import { listTrash, restoreFromTrash, trashPlan, trashSession, TRASH_DAYS } from "../lib/trash.js";
+import { getDefaultUserId, sendAuthError } from "../middlewares/user-context.js";
+import { authDisabled, bearerToken, userFromToken, wwwAuthenticate } from "../lib/auth.js";
 import {
   addDays,
   garminConfigured,
@@ -33,15 +35,20 @@ import {
 
 const transports = new Map<string, StreamableHTTPServerTransport>();
 const sessionExpiry = new Map<string, number>();
+const sessionUsers = new Map<string, string>();
+// A session ends after this long without a request; every request renews it
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 setInterval(() => {
   const now = Date.now();
   for (const [id, exp] of sessionExpiry) {
     if (now > exp) {
+      const transport = transports.get(id);
       transports.delete(id);
       sessionExpiry.delete(id);
-      logger.info({ sessionId: id }, "MCP session evicted (TTL expired)");
+      sessionUsers.delete(id);
+      void transport?.close().catch(() => undefined);
+      logger.info({ sessionId: id }, "MCP session evicted (idle for too long)");
     }
   }
 }, 60_000).unref();
@@ -125,6 +132,10 @@ const updateSessionArgsSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD").optional(),
   notes: z.string().nullable().optional(),
   duration_min: z.number().int().min(0).max(24 * 60).nullable().optional(),
+});
+
+const restoreDeletedArgsSchema = z.object({
+  id: z.string().uuid(),
 });
 
 const deleteSessionArgsSchema = z.object({
@@ -358,7 +369,7 @@ function createMcpServer(userId: string): Server {
       {
         name: "delete_plan",
         description:
-          "Permanently deletes a workout plan and its exercises. Sessions that used the plan keep their recorded data.",
+          "Deletes a workout plan and its exercises. Sessions that used the plan keep their recorded data. The plan moves to the trash and can be brought back with restore_deleted for 30 days.",
         annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
         inputSchema: {
           type: "object",
@@ -438,7 +449,7 @@ function createMcpServer(userId: string): Server {
       {
         name: "delete_session",
         description:
-          "Permanently deletes a session and all its exercises and sets. This cannot be undone.",
+          "Deletes a session with its exercises and sets. It moves to the trash and can be brought back with restore_deleted for 30 days; after that it is gone for good.",
         annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
         inputSchema: {
           type: "object",
@@ -446,6 +457,24 @@ function createMcpServer(userId: string): Server {
             session_id: { type: "string", description: "The session ID to delete." },
           },
           required: ["session_id"],
+        },
+      },
+      {
+        name: "list_deleted",
+        description: "Lists the plans and sessions in the trash, newest first, with the date each one is removed for good.",
+        annotations: { readOnlyHint: true },
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "restore_deleted",
+        description: "Restores a deleted plan or session from the trash, with everything it contained. Use list_deleted to find the id.",
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The id of the deleted plan or session." },
+          },
+          required: ["id"],
         },
       },
     ],
@@ -923,19 +952,14 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const existing = await db.query.plans.findFirst({
-            where: and(eq(plans.id, parsed.data.plan_id), eq(plans.userId, userId)),
-          });
-          if (!existing) {
+          if (!(await trashPlan(userId, parsed.data.plan_id))) {
             return {
               content: [{ type: "text", text: `Error: Plan "${parsed.data.plan_id}" not found` }],
               isError: true,
             };
           }
 
-          await db.delete(plans).where(eq(plans.id, parsed.data.plan_id));
-
-          const result = { success: true };
+          const result = { success: true, restorable_for_days: TRASH_DAYS };
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,
@@ -1044,20 +1068,46 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const existing = await db.query.sessions.findFirst({
-            where: and(eq(sessions.id, parsed.data.session_id), eq(sessions.userId, userId)),
-          });
-
-          if (!existing) {
+          if (!(await trashSession(userId, parsed.data.session_id))) {
             return {
               content: [{ type: "text", text: `Error: Session "${parsed.data.session_id}" not found` }],
               isError: true,
             };
           }
 
-          await db.delete(sessions).where(eq(sessions.id, parsed.data.session_id));
+          const result = { success: true, restorable_for_days: TRASH_DAYS };
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            structuredContent: result,
+          };
+        }
 
-          const result = { success: true };
+        case "list_deleted": {
+          const result = { items: await listTrash(userId) };
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            structuredContent: result,
+          };
+        }
+
+        case "restore_deleted": {
+          const parsed = restoreDeletedArgsSchema.safeParse(args ?? {});
+          if (!parsed.success) {
+            return {
+              content: [{ type: "text", text: `Error: invalid arguments — ${parsed.error.message}` }],
+              isError: true,
+            };
+          }
+
+          const restored = await restoreFromTrash(userId, parsed.data.id);
+          if (!restored) {
+            return {
+              content: [{ type: "text", text: `Error: Nothing with the id "${parsed.data.id}" is in the trash` }],
+              isError: true,
+            };
+          }
+
+          const result = { success: true, ...restored };
           return {
             content: [{ type: "text", text: JSON.stringify(result) }],
             structuredContent: result,
@@ -1128,6 +1178,25 @@ export function setupMcpRoutes(app: Express): void {
   // Single endpoint handles POST (new session or message), GET (SSE stream), DELETE (close session)
   app.all("/mcp", async (req, res) => {
     try {
+      // Every request carries the Auth0 access token; the acting user comes from it.
+      let userId: string;
+      if (authDisabled()) {
+        userId = getDefaultUserId();
+      } else {
+        const token = bearerToken(req);
+        if (!token) {
+          res.set("WWW-Authenticate", wwwAuthenticate());
+          res.status(401).json({ error: "Authentication required" });
+          return;
+        }
+        try {
+          userId = (await userFromToken(token)).id;
+        } catch (err) {
+          sendAuthError(res, err);
+          return;
+        }
+      }
+
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
       if (sessionId) {
@@ -1136,6 +1205,12 @@ export function setupMcpRoutes(app: Express): void {
           res.status(404).json({ error: "MCP session not found or expired" });
           return;
         }
+        // A session belongs to the user who opened it
+        if (sessionUsers.get(sessionId) !== userId) {
+          res.status(403).json({ error: "This MCP session belongs to another user" });
+          return;
+        }
+        sessionExpiry.set(sessionId, Date.now() + SESSION_TTL_MS);
         await transport.handleRequest(req, res, req.body);
         return;
       }
@@ -1143,13 +1218,6 @@ export function setupMcpRoutes(app: Express): void {
       // No session ID → new session, only POST is valid for initialization
       if (req.method !== "POST") {
         res.status(400).json({ error: "Send POST to /mcp to start a new session" });
-        return;
-      }
-
-      // Resolve acting user from ?user=<id or name>; defaults to the first user
-      const userId = await resolveMcpUserId(req.query["user"] as string | undefined);
-      if (!userId) {
-        res.status(403).json({ error: "Unknown user — pass ?user=<user id or name>" });
         return;
       }
 
@@ -1161,10 +1229,12 @@ export function setupMcpRoutes(app: Express): void {
       transport.onclose = () => {
         transports.delete(newSessionId);
         sessionExpiry.delete(newSessionId);
+        sessionUsers.delete(newSessionId);
         logger.info({ sessionId: newSessionId }, "MCP session closed");
       };
 
       transports.set(newSessionId, transport);
+      sessionUsers.set(newSessionId, userId);
       sessionExpiry.set(newSessionId, Date.now() + SESSION_TTL_MS);
       logger.info({ sessionId: newSessionId, userId }, "MCP session opened");
 

@@ -6,7 +6,7 @@ import { useListPlans, useListSessions, useGetBests, type PlanWithExercises, typ
 import { useProfile } from "@/lib/profile";
 import { ProfileAvatar } from "@/components/profile-gate";
 import { ProfileSheet } from "@/components/layout";
-import { BpButton, Card, Notice, PageTitle, SectionLabel, StatTile } from "@/components/bumper";
+import { BpButton, Card, Notice, PageTitle, SectionLabel } from "@/components/bumper";
 import { cleanName, daysBetween, formatKg, groupBySuperset } from "@/lib/training";
 import { useStartWorkout } from "@/lib/start-workout";
 import { ReadinessCard } from "@/components/readiness";
@@ -16,6 +16,7 @@ const COMEBACK_DAYS = 14;
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
 const ACTIVE_DAYS = 28;
+const CONTINUE_HOURS = 24;
 
 /**
  * What to train next. Plans used in the last four weeks form the current programme;
@@ -49,7 +50,9 @@ export default function TodayPage() {
 
   const today = new Date();
   const lastSession = sessions?.[0];
-  const unfinished = lastSession && lastSession.durationMin == null && isSameDay(parseISO(lastSession.date), today) ? lastSession : null;
+  // An open workout can be picked up again for a day; after that it counts as abandoned
+  const unfinished =
+    lastSession && lastSession.durationMin == null && today.getTime() - new Date(lastSession.createdAt).getTime() < CONTINUE_HOURS * 3_600_000 ? lastSession : null;
   const daysOff = lastSession ? daysBetween(parseISO(lastSession.date), today) : null;
   const next = plans && sessions ? pickNextPlan(plans, sessions, today) : null;
 
@@ -82,7 +85,7 @@ export default function TodayPage() {
       )}
 
       {unfinished ? (
-        <Card shadow className="space-y-3">
+        <Card className="space-y-3">
           <SectionLabel className="mb-0">In progress</SectionLabel>
           <p className="font-display font-extrabold text-[28px] leading-[30px] tracking-[-0.02em]">{cleanName(unfinished.name)}</p>
           <Link href={`/session/${unfinished.id}`} className="flex items-center justify-center gap-2 w-full min-h-14 rounded-[14px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-ink press font-display font-extrabold text-[17px]">
@@ -90,11 +93,11 @@ export default function TodayPage() {
           </Link>
         </Card>
       ) : plansLoading ? (
-        <div className="h-64 rounded-[14px] border-2 border-bp-outline bg-bp-surface animate-pulse" />
+        <div className="h-64 rounded-[14px] bg-bp-surface animate-pulse" />
       ) : next ? (
         <UpNext plan={next} onStart={() => start(next)} isPending={isPending} />
       ) : (
-        <Card shadow className="space-y-3">
+        <Card className="space-y-3">
           <p className="font-display font-extrabold text-[22px]">No plans yet</p>
           <p className="text-sm text-bp-muted">Make a plan once, then start it from here in one tap.</p>
           <Link href="/plans/new" className="inline-flex items-center justify-center min-h-12 px-5 rounded-[10px] border-2 border-bp-outline bg-bp-brand text-bp-on-brand shadow-hard-sm press font-bold">
@@ -116,8 +119,8 @@ export default function TodayPage() {
                 aria-label={`${format(d.day, "EEEE")}${d.trained ? ", trained" : ""}${d.isToday ? ", today" : ""}`}
                 className={cn(
                   "w-[38px] h-[38px] rounded-[10px] box-border flex items-center justify-center",
-                  d.trained ? "bg-bp-done border-2 border-bp-outline" : "bg-bp-surface-2",
-                  d.isToday && !d.trained && "bg-transparent border-2 border-bp-brand",
+                  d.trained ? "bg-plate-10" : "bg-bp-surface-2",
+                  d.isToday && !d.trained && "bg-transparent border-2 border-bp-outline",
                 )}
               />
             </li>
@@ -128,11 +131,18 @@ export default function TodayPage() {
       {bests && bests.length > 0 && (
         <section>
           <SectionLabel>Best sets</SectionLabel>
-          <div className="grid grid-cols-3 gap-2">
-            {bests.map((b) => (
-              <StatTile key={b.name} label={shortName(b.name)} value={formatKg(b.weightKg)} unit="kg" note={`for ${b.reps} reps`} />
-            ))}
-          </div>
+          <Card as="section" className="py-1">
+            <ul className="divide-y divide-bp-line text-sm">
+              {bests.map((b) => (
+                <li key={b.name} className="flex justify-between gap-3 py-2.5">
+                  <span className="truncate">{shortName(b.name)}</span>
+                  <span className="font-bold tabular shrink-0">
+                    {formatKg(b.weightKg)} kg for {b.reps} {b.reps === 1 ? "rep" : "reps"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
         </section>
       )}
 
@@ -152,7 +162,7 @@ function UpNext({ plan, onStart, isPending }: { plan: PlanWithExercises; onStart
   const rows = groups.slice(0, 4);
 
   return (
-    <Card shadow className="space-y-3.5 p-[18px]">
+    <Card className="space-y-3.5 p-[18px]">
       <div className="space-y-1">
         <SectionLabel className="mb-0">Up next</SectionLabel>
         <p className="font-display font-extrabold text-[28px] leading-[30px] tracking-[-0.02em]">{cleanName(plan.name)}</p>

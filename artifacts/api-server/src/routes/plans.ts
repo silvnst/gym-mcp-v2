@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { trashPlan } from "../lib/trash.js";
 import { db, plans, planExercises, type Plan, type PlanExercise } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -92,7 +93,8 @@ router.get("/plans", async (req, res) => {
       orderBy: (p, { desc }) => [desc(p.createdAt)],
     });
     res.json(allPlans.map(serializePlan));
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to list plans");
     res.status(500).json({ error: "Failed to list plans" });
   }
 });
@@ -117,7 +119,8 @@ router.post("/plans", async (req, res) => {
 
     const result = await getPlanWithExercises(planId, req.userId);
     res.status(201).json(result);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to create plan");
     res.status(500).json({ error: "Failed to create plan" });
   }
 });
@@ -130,7 +133,8 @@ router.get("/plans/:id", async (req, res) => {
       return;
     }
     res.json(plan);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to get plan");
     res.status(500).json({ error: "Failed to get plan" });
   }
 });
@@ -168,23 +172,22 @@ router.put("/plans/:id", async (req, res) => {
 
     const result = await getPlanWithExercises(planId, req.userId);
     res.json(result);
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to update plan");
     res.status(500).json({ error: "Failed to update plan" });
   }
 });
 
 router.delete("/plans/:id", async (req, res) => {
   try {
-    const existing = await db.query.plans.findFirst({
-      where: and(eq(plans.id, req.params.id!), eq(plans.userId, req.userId)),
-    });
-    if (!existing) {
+    // Goes to the trash and can be restored from there (see lib/trash.ts)
+    if (!(await trashPlan(req.userId, req.params.id!))) {
       res.status(404).json({ error: "Plan not found" });
       return;
     }
-    await db.delete(plans).where(eq(plans.id, req.params.id!));
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete plan");
     res.status(500).json({ error: "Failed to delete plan" });
   }
 });

@@ -3,20 +3,27 @@
 Personal gym tracker with a built-in **MCP server**, so AI assistants (e.g. Claude) can read and log your training data.
 
 - 📱 Mobile-first React app: plans, live workout logging, history & progress charts
-- 👥 Lightweight multi-user: shareable profiles (no passwords), each with their own plans, workouts, and stats
+- 👥 Multi-user with Auth0 login: each user has their own plans, workouts, and stats
 - ✏️ Recorded workouts are fully editable (name, date, duration, notes, exercises, sets)
 - ⏱️ Workout duration is tracked automatically and shown in the history
 - 🤖 MCP endpoint at `/mcp` with tools like `get_history`, `log_session`, `update_session`, `get_prs`, `get_training_context`
 
-## Multi-user (profiles)
+## Sign-in and users
 
-The app uses **Netflix-style profiles** — pick (or create) a profile on first load, switch any time via the profile button in the bottom nav. There are no passwords: anyone with the URL can use any profile, which keeps sharing with friends/family frictionless. Don't use it for data you need protected from the people you share the link with.
+Sign-in runs through **Auth0**; one Auth0 API protects both the web app and `/mcp`. Every request carries an access token, the server validates it and scopes all data to the matching profile. Setup steps are in [docs/auth.md](docs/auth.md).
 
-How it works:
+- A `users` table owns plans & sessions. A login is linked to a profile by its Auth0 `sub`.
+- The first time an email signs in, `AUTH_CLAIM_MAP` can link it to an existing profile (so old data stays with its owner); any other allowed email gets a fresh profile.
+- Only emails in `AUTH_ALLOWED_EMAILS` or `AUTH_CLAIM_MAP` may sign in, unless `AUTH_ALLOW_ANY_USER=true`.
+- Data created before multi-user support is adopted by the default user on first boot (set `DEFAULT_USER_NAME` to control its name). The default user also owns the Garmin data.
 
-- A `users` table owns plans & sessions; every API request is scoped by an `X-User-Id` header the frontend sends automatically.
-- Requests without the header act as the **default user** (the oldest profile), so existing API usage keeps working. Data created before multi-user support is adopted by the default user on first boot (set `DEFAULT_USER_NAME` to control its name).
-- MCP connections pick their user with `?user=<profile name or id>` (case-insensitive name match), e.g. `/mcp?token=<secret>&user=anna`. Without the param the default user is used.
+## Install as an app
+
+The web app is a PWA. On the phone, open it in the browser and choose **Add to Home Screen** (iOS: share menu, Android: browser menu). It then starts full screen with its own icon.
+
+- `artifacts/gym-tracker/public/sw.js` stores the app shell, so the app opens without a connection. Data still comes from the network: offline you see a "No connection" screen with a retry button.
+- `index.html`, `sw.js` and the manifest are served with `Cache-Control: no-cache`, hashed files under `/assets` are cached for a year. A new deploy shows up on the next start.
+- The installed app keeps its own storage, so you sign in once more after installing.
 
 ## Architecture
 
@@ -56,11 +63,13 @@ Open your **app service** → **Variables** tab → **New Variable** (changes ar
 | Variable | Required | Value |
 |---|---|---|
 | `DATABASE_URL` | ✅ | `${{Postgres.DATABASE_URL}}` (a [reference variable](https://docs.railway.com/guides/variables#referencing-another-services-variable) to the Postgres service — use the *private* URL to avoid egress fees) |
-| `MCP_SECRET` | ✅ recommended | A long random string (e.g. `openssl rand -hex 32`). Protects the `/mcp` endpoint: clients must call `/mcp?token=<MCP_SECRET>`. Without it, the MCP endpoint is **public**. |
+| `AUTH0_DOMAIN`, `AUTH0_AUDIENCE` | ✅ | Auth0 tenant domain and the API identifier (the canonical MCP URL, `https://<your-app>/mcp`). Without them every API call is rejected. See [docs/auth.md](docs/auth.md). |
+| `AUTH_CLAIM_MAP`, `AUTH_ALLOWED_EMAILS` | ✅ | Who may sign in and which existing profile an email takes over. |
+| `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`, `VITE_AUTH0_AUDIENCE` | ✅ | Frontend Auth0 settings, read at **build** time. |
 | `NODE_ENV` | optional | `production` |
 | `FRONTEND_ORIGIN` | optional | Restrict CORS to your app's URL (defaults to `*`) |
 
-> **Where do secrets go?** Railway has no separate "secrets" store — service **Variables** are encrypted and injected as environment variables at runtime, so `MCP_SECRET` and `DATABASE_URL` both go in the Variables tab. Use **Shared Variables** (Project Settings → Shared Variables) if you want to reuse a value across services. `PORT` is injected automatically by Railway — don't set it.
+> **Where do secrets go?** Railway has no separate "secrets" store — service **Variables** are encrypted and injected as environment variables at runtime, so `DATABASE_URL` and the Auth0 settings go in the Variables tab. Use **Shared Variables** (Project Settings → Shared Variables) if you want to reuse a value across services. `PORT` is injected automatically by Railway — don't set it.
 
 ### 4. Expose the app
 
@@ -71,10 +80,14 @@ App service → **Settings** → **Networking** → **Generate Domain** (or atta
 Once deployed, point your MCP client (e.g. Claude custom connector) at:
 
 ```
-https://<your-app>.up.railway.app/mcp?token=<MCP_SECRET>
+https://<your-app>.up.railway.app/mcp
 ```
 
-It speaks Streamable HTTP and exposes read tools (`get_history`, `get_session_detail`, `get_plans`, `get_prs`, `get_volume_by_week`, `get_exercise_history`, `get_training_context`) and write tools (`create_plan`, `update_plan`, `delete_plan`, `log_session`, `update_session`, `delete_session`).
+The client discovers Auth0 from the server's OAuth metadata and opens a sign-in window; no token goes into the URL.
+
+It speaks Streamable HTTP and exposes read tools (`get_history`, `get_session_detail`, `get_plans`, `get_prs`, `get_volume_by_week`, `get_exercise_history`, `get_training_context`) and write tools (`create_plan`, `update_plan`, `delete_plan`, `log_session`, `update_session`, `delete_session`, `list_deleted`, `restore_deleted`).
+
+Deleting a plan or a workout, in the app or through MCP, moves it to the trash (`trash` table, a snapshot of the rows). It can be restored for 30 days from **Recently deleted** in the profile menu or with `restore_deleted`; after that the server removes it for good.
 
 ## Local development
 
@@ -126,7 +139,7 @@ pnpm --filter @workspace/api-spec codegen
 |---|---|---|
 | `PORT` | `8080` | HTTP port (injected by Railway) |
 | `DATABASE_URL` | — (required) | Postgres connection string |
-| `MCP_SECRET` | unset | When set, `/mcp` requires `?token=<MCP_SECRET>` |
+| `AUTH_DISABLED` | unset | `true` skips auth and acts as the default user. Local development only, ignored in production |
 | `DEFAULT_USER_NAME` | `Default` | Name of the auto-created first profile |
 | `FRONTEND_ORIGIN` | `*` | CORS allowed origin |
 | `FRONTEND_DIST` | auto-detected | Override path to the built frontend |

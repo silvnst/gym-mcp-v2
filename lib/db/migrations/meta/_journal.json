@@ -22,6 +22,20 @@
       "when": 1793658652507,
       "tag": "0002_garmin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794251932987,
+      "tag": "0003_open_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794612455304,
+      "tag": "0004_trash",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Bumper design system. Source of truth: docs/design-system.md
+ * Bumper design system, quiet variant. Source of truth: docs/design-system.md
+ * Outlines and hard shadows belong to things you can tap; cards are plain surfaces.
  * Dark is the default; light applies with data-theme="light" on <html>,
  * or when the OS prefers light and no theme was chosen.
  */
@@ -16,6 +16,7 @@
   --color-bp-surface: var(--bp-surface);
   --color-bp-surface-2: var(--bp-surface-2);
   --color-bp-outline: var(--bp-outline);
+  --color-bp-line: var(--bp-line);
   --color-bp-ink: var(--bp-ink);
   --color-bp-muted: var(--bp-muted);
   --color-bp-brand: var(--bp-brand);
@@ -66,7 +67,7 @@
   --radius-2xl: 14px;
 
   --shadow-hard: 4px 4px 0 var(--bp-shadow);
-  --shadow-hard-sm: 3px 3px 0 var(--bp-shadow);
+  --shadow-hard-sm: 3px 3px 0 var(--bp-outline);
   --shadow-hard-ink: 4px 4px 0 var(--bp-outline);
 }
 
@@ -76,6 +77,7 @@
   --bp-surface: #1c1c1c;
   --bp-surface-2: #2a2a2a;
   --bp-outline: #f5f5f5;
+  --bp-line: #333333;
   --bp-ink: #f5f5f5;
   --bp-muted: #b3b3b3;
   --bp-brand: #ffd60a;
@@ -95,6 +97,7 @@
   --bp-surface: #ffffff;
   --bp-surface-2: #ececea;
   --bp-outline: #111111;
+  --bp-line: #dededa;
   --bp-ink: #111111;
   --bp-muted: #4d4d4d;
   --bp-brand: #ffd60a;
@@ -115,6 +118,8 @@
     --bp-surface: #ffffff;
     --bp-surface-2: #ececea;
     --bp-outline: #111111;
+  --bp-line: #dededa;
+    --bp-line: #dededa;
     --bp-ink: #111111;
     --bp-muted: #4d4d4d;
     --bp-brand: #ffd60a;

@@ -17,6 +17,38 @@ export interface SuccessResponse {
   success: boolean;
 }
 
+export type TrashItemKind = typeof TrashItemKind[keyof typeof TrashItemKind];
+
+
+export const TrashItemKind = {
+  session: 'session',
+  plan: 'plan',
+} as const;
+
+export interface TrashItem {
+  /** Id of the deleted plan or workout */
+  id: string;
+  kind: TrashItemKind;
+  name: string;
+  deletedAt: string;
+  /** When the item is removed for good */
+  expiresAt: string;
+}
+
+export type RestoredItemKind = typeof RestoredItemKind[keyof typeof RestoredItemKind];
+
+
+export const RestoredItemKind = {
+  session: 'session',
+  plan: 'plan',
+} as const;
+
+export interface RestoredItem {
+  id: string;
+  kind: RestoredItemKind;
+  name: string;
+}
+
 export interface UserRecord {
   id: string;
   name: string;

@@ -2,6 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureUsersBootstrap } from "./middlewares/user-context";
 import { startGarminSync } from "./lib/garmin";
+import { assertAuthConfigured } from "./lib/auth";
+import { startTrashPurge } from "./lib/trash";
 
 // Railway (and most PaaS hosts) inject PORT; fall back to 8080 for local dev.
 const port = Number(process.env["PORT"] ?? 8080);
@@ -10,11 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${process.env["PORT"]}"`);
 }
 
-if (process.env["NODE_ENV"] === "production" && !process.env["MCP_SECRET"]) {
-  logger.warn(
-    "MCP_SECRET is not set — the /mcp endpoint is unprotected. Set the MCP_SECRET environment variable in production.",
-  );
-}
+assertAuthConfigured();
 
 async function main() {
   await ensureUsersBootstrap();
@@ -27,6 +25,7 @@ async function main() {
 
     logger.info({ port }, "Server listening");
     startGarminSync();
+    startTrashPurge();
   });
 }
 

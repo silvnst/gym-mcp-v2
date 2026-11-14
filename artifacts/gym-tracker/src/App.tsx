@@ -1,9 +1,8 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
-import { ProfileGate } from "@/components/profile-gate";
+import { AuthProvider, ProfileGate } from "@/components/profile-gate";
 import NotFound from "@/pages/not-found";
 
 import { Redirect } from "wouter";
@@ -14,6 +13,7 @@ import SessionPage from "@/pages/session";
 import HistoryPage from "@/pages/history";
 import ProgressPage from "@/pages/progress";
 import SessionDetailPage from "@/pages/session-detail";
+import TrashPage from "@/pages/trash";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +46,7 @@ function Router() {
         <Route path="/session/:id" component={SessionPage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/history/:id" component={SessionDetailPage} />
+        <Route path="/trash" component={TrashPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -55,14 +56,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ProfileGate>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-        </ProfileGate>
+        <AuthProvider>
+          <ProfileGate>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+          </ProfileGate>
+        </AuthProvider>
         <Toaster />
-      </TooltipProvider>
     </QueryClientProvider>
   );
 }

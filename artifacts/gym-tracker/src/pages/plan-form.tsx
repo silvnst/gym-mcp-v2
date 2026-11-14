@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useRestore } from "@/hooks/use-restore";
 import { BpButton, Card } from "@/components/bumper";
 import { cleanName, guessEquipment } from "@/lib/training";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ export default function PlanFormPage() {
   const planId = params.id as string | undefined;
   const isEditing = !!planId;
   const { toast } = useToast();
+  const { offerUndo } = useRestore();
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -107,10 +109,11 @@ export default function PlanFormPage() {
     });
   }, [existingPlan]);
 
-  const done = (title: string) => {
+  const done = (title: string, undoId?: string) => {
     queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
     if (planId) queryClient.invalidateQueries({ queryKey: getGetPlanQueryKey(planId) });
-    toast({ title });
+    if (undoId) offerUndo(undoId, title);
+    else toast({ title });
     setLocation("/plans");
   };
 
@@ -139,7 +142,7 @@ export default function PlanFormPage() {
     deletePlan.mutate(
       { id: planId },
       {
-        onSuccess: () => done("Plan deleted"),
+        onSuccess: () => done("Plan deleted", planId),
         onError: () => toast({ title: "Plan not deleted", variant: "destructive" }),
       },
     );
@@ -154,7 +157,7 @@ export default function PlanFormPage() {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pb-4" noValidate>
       <div className="flex justify-between items-center gap-3 -mt-2">
-        <Link href="/plans" aria-label="Back to plans" title="Back" className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] border-2 border-bp-outline bg-bp-surface">
+        <Link href="/plans" aria-label="Back to plans" title="Back" className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] bg-bp-surface-2">
           <ArrowLeft className="w-[18px] h-[18px]" aria-hidden="true" />
         </Link>
         <h1 className="font-sans font-bold text-base">{isEditing ? "Edit plan" : "New plan"}</h1>
@@ -210,10 +213,8 @@ export default function PlanFormPage() {
               <Card
                 className={cn(
                   "space-y-3",
-                  joinedAbove && "rounded-t-none border-t-0",
+                  joinedAbove && "rounded-t-none border-t border-bp-line",
                   joinedBelow && "rounded-b-none",
-                  group && "bg-bp-surface",
-                  !joinedBelow && "shadow-hard",
                 )}
               >
                 {group && !joinedAbove && <p className="text-[13px] font-bold">Superset {group}</p>}

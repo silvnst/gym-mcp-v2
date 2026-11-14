@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useRestore } from "@/hooks/use-restore";
 import { formatDuration, formatVolume } from "@/lib/utils";
 
 export default function SessionDetailPage() {
@@ -30,6 +31,7 @@ export default function SessionDetailPage() {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { offerUndo } = useRestore();
 
   const { data: session, isLoading } = useGetSession(params.id as string, {
     query: {
@@ -43,7 +45,7 @@ export default function SessionDetailPage() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-        toast({ title: "Workout deleted" });
+        offerUndo(params.id as string, "Workout deleted");
         setLocation("/history");
       },
       onError: () => {
@@ -154,23 +156,23 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
   return (
     <>
       {/* Overview card */}
-      <div className="bg-card rounded-[14px] border-2 border-border p-5">
+      <div className="bg-card rounded-[14px] p-5">
         <h1 className="text-2xl font-display font-bold mb-2">{session.name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
           <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-primary" />
+            <Calendar className="h-3.5 w-3.5 text-bp-muted" />
             {format(parseISO(session.date), "EEE, MMM d, yyyy")}
           </span>
           {session.durationMin != null && (
             <span className="flex items-center gap-1.5" data-testid="text-session-duration">
-              <Clock className="h-3.5 w-3.5 text-primary" />
+              <Clock className="h-3.5 w-3.5 text-bp-muted" />
               {formatDuration(session.durationMin)}
             </span>
           )}
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">
               {totalVolume > 0 ? formatVolume(totalVolume) : "–"}
             </div>
@@ -178,13 +180,13 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
               Volume
             </div>
           </div>
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{totalSets}</div>
             <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Sets
             </div>
           </div>
-          <div className="border-2 border-border rounded-[10px] p-3 text-center">
+          <div className="bg-bp-surface-2 rounded-[10px] p-3 text-center">
             <div className="text-lg font-bold tabular-nums text-foreground leading-tight">{exercises.length}</div>
             <div className="text-[13px] text-muted-foreground font-medium mt-0.5">
               Exercises
@@ -193,7 +195,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
         </div>
 
         {session.notes && (
-          <div className="mt-4 pt-4 border-t border-border">
+          <div className="mt-4 pt-4 border-t border-bp-line">
             <div className="text-[13px] text-muted-foreground font-medium mb-1.5">
               Notes
             </div>
@@ -205,7 +207,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
       {/* Exercises */}
       <div className="space-y-4">
         {exercises.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-[14px] border-2 border-border">
+          <div className="text-center py-10 text-muted-foreground text-sm bg-card rounded-[14px]">
             No exercises logged in this workout.
           </div>
         ) : (
@@ -218,7 +220,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                 exercise.targetReps != null || exercise.targetWeightKg != null || exercise.targetSets != null;
 
               return (
-                <div key={exercise.id} className="bg-card rounded-[14px] border-2 border-border p-4">
+                <div key={exercise.id} className="bg-card rounded-[14px] p-4">
                   <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
                     <div className="flex items-baseline gap-2 min-w-0">
                       <span className="text-xs font-bold text-muted-foreground">
@@ -237,14 +239,14 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                   {allSets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No sets logged.</p>
                   ) : (
-                    <div className="rounded-[10px] overflow-hidden border border-border/40">
+                    <div className="rounded-[10px] overflow-hidden border border-bp-line">
                       <div className="grid grid-cols-[2.5rem_1fr_1fr_1fr] text-[13px] font-bold text-muted-foreground bg-muted/50 px-3 py-2 gap-2">
                         <div className="text-center">Set</div>
                         <div className="text-right">kg</div>
                         <div className="text-right">Reps</div>
                         <div className="text-right">Vol</div>
                       </div>
-                      <div className="divide-y divide-border/30">
+                      <div className="divide-y divide-bp-line">
                         {allSets.map((set) => {
                           const vol =
                             set.reps != null && set.weightKg != null ? set.reps * set.weightKg : null;
@@ -349,7 +351,7 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
   return (
     <>
       {/* Session meta editor */}
-      <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-5 space-y-4">
+      <div className="bg-card rounded-[14px] p-5 space-y-4">
         <div className="space-y-1.5">
           <label className={labelCls}>Name</label>
           <Input
@@ -361,8 +363,8 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+          <div className="space-y-1.5 min-w-0">
             <label className={labelCls}>Date</label>
             <Input
               type="date"
@@ -370,10 +372,10 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
               onChange={(e) => setDate(e.target.value)}
               onBlur={saveMeta}
               data-testid="input-edit-session-date"
-              className="rounded-[10px] bg-muted/50 border-border"
+              className="block w-full min-w-0 appearance-none rounded-[10px] bg-muted/50 border-border"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <label className={labelCls}>Duration (min)</label>
             <Input
               type="text"
@@ -492,7 +494,7 @@ function ExerciseEditor({
   const sortedSets = exercise.sets.slice().sort((a, b) => a.setNumber - b.setNumber);
 
   return (
-    <div className="bg-card rounded-[14px] border-2 border-border shadow-hard p-4">
+    <div className="bg-card rounded-[14px] p-4">
       <div className="flex items-center gap-2 mb-3">
         <Input
           value={name}
@@ -549,7 +551,7 @@ function ExerciseEditor({
       )}
 
       <button
-        className="mt-2 w-full text-xs font-semibold text-primary flex items-center justify-center gap-1 py-2.5 rounded-[10px] bg-primary/5 hover:bg-primary/10 transition-colors"
+        className="mt-2 w-full min-h-11 text-sm font-bold text-bp-ink flex items-center justify-center gap-1 rounded-[10px] bg-bp-surface-2"
         onClick={handleAddSet}
         data-testid={`button-edit-add-set-${exercise.id}`}
       >

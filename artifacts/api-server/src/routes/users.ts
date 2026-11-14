@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, users, type User } from "@workspace/db";
 
@@ -13,36 +13,27 @@ function serializeUser(u: User) {
   };
 }
 
-router.get("/users", async (_req, res) => {
+// Mounted behind userContext: a login only ever sees and edits its own profile.
+router.get("/users/me", async (req, res) => {
   try {
-    const allUsers = await db.select().from(users).orderBy(asc(users.createdAt));
-    res.json(allUsers.map(serializeUser));
-  } catch {
-    res.status(500).json({ error: "Failed to list users" });
+    const me = await db.query.users.findFirst({ where: eq(users.id, req.userId) });
+    if (!me) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(serializeUser(me));
+  } catch (err) {
+    req.log.error({ err }, "Failed to load profile");
+    res.status(500).json({ error: "Failed to load profile" });
   }
 });
 
-const createUserSchema = z.object({
+const renameSchema = z.object({
   name: z.string().trim().min(1).max(50),
 });
 
-router.post("/users", async (req, res) => {
-  const parsed = createUserSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-
-  try {
-    const [created] = await db.insert(users).values({ name: parsed.data.name }).returning();
-    res.status(201).json(serializeUser(created!));
-  } catch {
-    res.status(500).json({ error: "Failed to create user" });
-  }
-});
-
-router.patch("/users/:id", async (req, res) => {
-  const parsed = createUserSchema.safeParse(req.body);
+router.patch("/users/me", async (req, res) => {
+  const parsed = renameSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -52,15 +43,16 @@ router.patch("/users/:id", async (req, res) => {
     const [updated] = await db
       .update(users)
       .set({ name: parsed.data.name })
-      .where(eq(users.id, req.params.id!))
+      .where(eq(users.id, req.userId))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "User not found" });
       return;
     }
     res.json(serializeUser(updated));
-  } catch {
-    res.status(500).json({ error: "Failed to update user" });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update profile");
+    res.status(500).json({ error: "Failed to update profile" });
   }
 });
 

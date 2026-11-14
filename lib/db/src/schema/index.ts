@@ -10,6 +10,7 @@ import {
   bigint,
   real,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -18,6 +19,9 @@ import { z } from "zod/v4";
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  // Auth0 subject (token `sub`) once the profile has been linked to a login
+  authSub: text("auth_sub").unique(),
+  email: text("email"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -146,6 +150,31 @@ export const garminActivities = pgTable(
 
 export type GarminDay = typeof garminDays.$inferSelect;
 export type GarminActivity = typeof garminActivities.$inferSelect;
+
+// ── Trash ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Deleted plans and sessions, kept as a snapshot so they can be restored.
+ * The row id is the id of the deleted plan or session. The server removes
+ * rows a while after `deletedAt` (see api-server/src/lib/trash.ts).
+ */
+export const trash = pgTable(
+  "trash",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // session | plan
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    payload: jsonb("payload").notNull(),
+    deletedAt: timestamp("deleted_at").notNull().defaultNow(),
+  },
+  (t) => [index("trash_user_deleted").on(t.userId, t.deletedAt)],
+);
+
+export type TrashItem = typeof trash.$inferSelect;
 
 export const plansRelations = relations(plans, ({ many }) => ({
   planExercises: many(planExercises),

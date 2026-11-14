@@ -1,6 +1,7 @@
 /**
- * Bumper building blocks. Every piece carries the 2px outline; cards and the
- * main action add the hard offset shadow. See docs/design-system.md.
+ * Bumper building blocks. Buttons, chips and inputs carry the 2px outline and
+ * the main action adds the hard offset shadow; cards and tiles are plain
+ * surfaces. See docs/design-system.md.
  */
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -29,9 +30,9 @@ export function SectionLabel({ children, right, className }: { children: ReactNo
   );
 }
 
-export function Card({ children, className, shadow = false, as: As = "div" }: { children: ReactNode; className?: string; shadow?: boolean; as?: "div" | "section" | "li" }) {
+export function Card({ children, className, as: As = "div" }: { children: ReactNode; className?: string; as?: "div" | "section" | "li" }) {
   return (
-    <As className={cn("bg-bp-surface border-2 border-bp-outline rounded-[14px] p-4", shadow && "shadow-hard", className)}>
+    <As className={cn("bg-bp-surface rounded-[14px] p-4", className)}>
       {children}
     </As>
   );
@@ -66,7 +67,7 @@ export const IconButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTM
         type={type}
         aria-label={label}
         title={label}
-        className={cn("h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] border-2 border-bp-outline bg-bp-surface text-bp-ink", className)}
+        className={cn("h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-[10px] bg-bp-surface-2 text-bp-ink", className)}
         {...props}
       >
         {children}
@@ -98,25 +99,12 @@ export function Notice({ tone = "warn", icon, children }: { tone?: "warn" | "tip
     <div
       role="status"
       className={cn(
-        "flex gap-3 items-start px-3.5 py-3 border-2 border-bp-outline rounded-[14px] text-sm leading-5 text-bp-ink",
+        "flex gap-3 items-start px-3.5 py-3 rounded-[14px] text-sm leading-5 text-bp-ink",
         tone === "warn" ? "bg-bp-warn-soft" : "bg-bp-done",
       )}
     >
       <span className={cn("shrink-0 mt-px", tone === "warn" ? "text-bp-warn" : "text-bp-ink")}>{icon}</span>
       <span>{children}</span>
-    </div>
-  );
-}
-
-export function StatTile({ label, value, unit, note }: { label: string; value: ReactNode; unit?: string; note?: ReactNode }) {
-  return (
-    <div className="bg-bp-surface border-2 border-bp-outline rounded-[14px] px-3 py-2.5 flex flex-col gap-0.5 min-w-0">
-      <span className="text-xs text-bp-muted truncate">{label}</span>
-      <span className="font-bold text-[22px] leading-none tabular text-bp-ink">
-        {value}
-        {unit && <span className="text-xs font-medium text-bp-muted"> {unit}</span>}
-      </span>
-      {note && <span className="text-xs text-bp-muted truncate">{note}</span>}
     </div>
   );
 }
@@ -131,6 +119,7 @@ export function Stepper({
   min = 0,
   format = (v) => String(v),
   unitLabel,
+  compact = false,
 }: {
   label: string;
   value: number | null;
@@ -139,21 +128,24 @@ export function Stepper({
   min?: number;
   format?: (v: number) => string;
   unitLabel: string;
+  /** Sits inside a card that already names the exercise: no own surface, smaller figure with the unit. */
+  compact?: boolean;
 }) {
   const current = value ?? 0;
   const stepText = formatKg(step);
   return (
-    <div className="bg-bp-surface border-2 border-bp-outline rounded-[14px] shadow-hard p-3 flex flex-col items-center gap-2 min-w-0">
-      <span className="text-[13px] font-bold text-bp-muted">{label}</span>
-      <output aria-live="polite" className="font-bold text-[44px] leading-none tabular text-bp-ink">
+    <div className={cn("flex flex-col items-center min-w-0", compact ? "gap-2" : "bg-bp-surface rounded-[14px] p-3 gap-2.5")}>
+      <span className={compact ? "sr-only" : "text-[13px] text-bp-muted"}>{label}</span>
+      <output aria-live="polite" className={cn("font-bold leading-none tabular text-bp-ink", compact ? "text-[28px]" : "text-[44px]")}>
         {value == null ? "–" : format(current)}
+        {compact && <span className="text-sm font-normal text-bp-muted"> {unitLabel}</span>}
       </output>
       <div className="grid grid-cols-2 gap-1.5 w-full">
         <button
           type="button"
           aria-label={`Minus ${stepText} ${unitLabel}`}
           onClick={() => onChange(Math.max(min, Math.round((current - step) * 100) / 100))}
-          className="min-h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface-2 text-bp-ink font-bold text-[15px] tabular"
+          className="min-h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface text-bp-ink font-bold text-[15px] tabular"
         >
           −{stepText}
         </button>
@@ -161,7 +153,7 @@ export function Stepper({
           type="button"
           aria-label={`Plus ${stepText} ${unitLabel}`}
           onClick={() => onChange(Math.round((current + step) * 100) / 100)}
-          className="min-h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface-2 text-bp-ink font-bold text-[15px] tabular"
+          className="min-h-12 rounded-[10px] border-2 border-bp-outline bg-bp-surface text-bp-ink font-bold text-[15px] tabular"
         >
           +{stepText}
         </button>
@@ -173,40 +165,33 @@ export function Stepper({
 /* ── Plates ─────────────────────────────────────────────────────────────── */
 
 const PLATE_STYLE: Record<Plate, string> = {
-  25: "bg-plate-25 w-[24px] h-[78px]",
-  20: "bg-plate-20 w-[22px] h-[78px]",
-  15: "bg-plate-15 w-[20px] h-[70px]",
-  10: "bg-plate-10 w-[16px] h-[60px]",
-  5: "bg-plate-5 w-[13px] h-[46px]",
-  2.5: "bg-plate-change w-[10px] h-[36px]",
-  1.25: "bg-plate-change w-[9px] h-[30px]",
+  25: "bg-plate-25 text-white",
+  20: "bg-plate-20 text-white",
+  15: "bg-plate-15 text-[#111111]",
+  10: "bg-plate-10 text-[#111111]",
+  5: "bg-plate-5 text-[#111111]",
+  2.5: "bg-plate-change text-[#111111]",
+  1.25: "bg-plate-change text-[#111111]",
 };
 
+/** What to load on each side of the bar, as chips in plate colours. */
 export function PlateLoader({ totalKg }: { totalKg: number | null }) {
   if (totalKg == null || totalKg <= 0) return null;
   const plates = platesPerSide(totalKg);
-  const label =
-    plates == null
-      ? `${formatKg(totalKg)} kg can't be built with standard plates`
-      : plates.length === 0
-        ? "Empty bar"
-        : plates.map((p) => formatKg(p)).join(" + ");
+  if (plates == null) {
+    return <p className="text-sm text-bp-muted">{formatKg(totalKg)} kg can't be built with standard plates.</p>;
+  }
+  if (plates.length === 0) return <p className="text-sm text-bp-muted">Empty {BAR_KG} kg bar.</p>;
   return (
-    <Card className="py-3">
-      <div className="flex justify-between items-baseline">
-        <span className="text-sm font-bold">Plates per side</span>
-        <span className="text-[13px] text-bp-muted tabular">{label}</span>
-      </div>
-      {plates && (
-        <div role="img" aria-label={plates.length ? `Per side: ${label}, on a ${BAR_KG} kg bar` : "Empty bar"} className="flex items-center h-20 gap-[3px] mt-1">
-          <div className="w-9 h-2.5 rounded-sm bg-bp-muted" />
-          <div className="w-2.5 h-6 rounded-sm bg-bp-muted" />
-          {plates.map((p, i) => (
-            <div key={i} className={cn("box-border border-2 border-bp-outline rounded", PLATE_STYLE[p])} />
-          ))}
-          <div className="flex-1 h-2.5 rounded-sm bg-bp-muted" />
-        </div>
-      )}
-    </Card>
+    <div className="flex items-center flex-wrap gap-2 text-sm text-bp-muted">
+      <span>Per side</span>
+      <ul aria-label={`Per side: ${plates.map((p) => formatKg(p)).join(" + ")} kg, on a ${BAR_KG} kg bar`} className="contents">
+        {plates.map((p, i) => (
+          <li key={i} className={cn("px-2.5 py-0.5 rounded-md border border-bp-line font-bold tabular", PLATE_STYLE[p])}>
+            {formatKg(p)}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
