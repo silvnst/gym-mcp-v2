@@ -43,11 +43,13 @@ export const planExercises = pgTable("plan_exercises", {
   sortOrder: integer("sort_order").notNull(),
   targetSets: integer("target_sets").notNull(),
   targetReps: integer("target_reps").notNull(),
+  // Timed exercises (equipment "cardio") aim for a time instead of reps
+  targetSeconds: integer("target_seconds"),
   targetWeightKg: numeric("target_weight_kg", { precision: 8, scale: 2 }),
   notes: text("notes"),
   // Exercises sharing a group letter (e.g. "A") are done as a superset
   supersetGroup: text("superset_group"),
-  // barbell | dumbbell | bodyweight | machine | cable | other
+  // barbell | dumbbell | bodyweight | machine | cable | cardio | other
   equipment: text("equipment"),
 });
 
@@ -75,6 +77,7 @@ export const sessionExercises = pgTable("session_exercises", {
   sortOrder: integer("sort_order").notNull(),
   targetSets: integer("target_sets"),
   targetReps: integer("target_reps"),
+  targetSeconds: integer("target_seconds"),
   targetWeightKg: numeric("target_weight_kg", { precision: 8, scale: 2 }),
   supersetGroup: text("superset_group"),
   equipment: text("equipment"),
@@ -87,6 +90,8 @@ export const sets = pgTable("sets", {
     .references(() => sessionExercises.id, { onDelete: "cascade" }),
   setNumber: integer("set_number").notNull(),
   reps: integer("reps"),
+  // Timed sets record how long they took; reps and weight stay empty
+  durationSeconds: integer("duration_seconds"),
   weightKg: numeric("weight_kg", { precision: 8, scale: 2 }),
   // How the set felt: easy | right | hard
   effort: text("effort"),

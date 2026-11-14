@@ -841,6 +841,10 @@ components:
           type: integer
         targetSets:
           type: integer
+        targetSeconds:
+          type: integer
+          nullable: true
+          description: Target time in seconds for timed exercises (equipment cardio)
         targetReps:
           type: integer
         targetWeightKg:
@@ -894,6 +898,10 @@ components:
           type: integer
         targetSets:
           type: integer
+        targetSeconds:
+          type: integer
+          nullable: true
+          description: Target time in seconds for timed exercises (equipment cardio)
         targetReps:
           type: integer
         targetWeightKg:
@@ -939,6 +947,10 @@ components:
           type: string
         setNumber:
           type: integer
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: How long a timed set took, in seconds
         reps:
           type: integer
           nullable: true
@@ -975,6 +987,10 @@ components:
         targetSets:
           type: integer
           nullable: true
+        targetSeconds:
+          type: integer
+          nullable: true
+          description: Target time in seconds for timed exercises (equipment cardio)
         targetReps:
           type: integer
           nullable: true
@@ -1022,6 +1038,10 @@ components:
               weightKg:
                 type: number
                 nullable: true
+              durationSeconds:
+                type: integer
+                nullable: true
+                description: How long a timed set took, in seconds
               reps:
                 type: integer
                 nullable: true
@@ -1109,6 +1129,10 @@ components:
         targetSets:
           type: integer
           nullable: true
+        targetSeconds:
+          type: integer
+          nullable: true
+          description: Target time in seconds for timed exercises (equipment cardio)
         targetReps:
           type: integer
           nullable: true
@@ -1160,6 +1184,10 @@ components:
           type: string
         setNumber:
           type: integer
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: How long a timed set took, in seconds
         reps:
           type: integer
           nullable: true
@@ -1217,6 +1245,10 @@ components:
     UpdateSetBody:
       type: object
       properties:
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: How long a timed set took, in seconds
         reps:
           type: integer
           nullable: true
@@ -1232,7 +1264,7 @@ components:
     Equipment:
       type: string
       nullable: true
-      enum: [barbell, dumbbell, bodyweight, machine, cable, other, null]
+      enum: [barbell, dumbbell, bodyweight, machine, cable, cardio, other, null]
 
     Effort:
       type: string

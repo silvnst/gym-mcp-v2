@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatTime } from "@/lib/training";
 import { useToast } from "@/hooks/use-toast";
 import { useRestore } from "@/hooks/use-restore";
 import { formatDuration, formatVolume } from "@/lib/utils";
@@ -262,7 +263,7 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
                                 {set.weightKg ?? <span className="text-muted-foreground/40">–</span>}
                               </div>
                               <div className="text-right font-mono font-medium tabular-nums">
-                                {set.reps ?? <span className="text-muted-foreground/40">–</span>}
+                                {set.durationSeconds != null ? formatTime(set.durationSeconds) : (set.reps ?? <span className="text-muted-foreground/40">–</span>)}
                               </div>
                               <div className="text-right font-mono text-muted-foreground text-xs tabular-nums">
                                 {vol != null && vol > 0 ? Math.round(vol) : (

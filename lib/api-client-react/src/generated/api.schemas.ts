@@ -68,6 +68,7 @@ export const Equipment = {
   bodyweight: 'bodyweight',
   machine: 'machine',
   cable: 'cable',
+  cardio: 'cardio',
   other: 'other',
 } as const;
 
@@ -77,6 +78,8 @@ export interface PlanExerciseRecord {
   name: string;
   sortOrder: number;
   targetSets: number;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
@@ -97,6 +100,8 @@ export interface CreatePlanExerciseBody {
   name: string;
   sortOrder: number;
   targetSets: number;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
@@ -127,6 +132,8 @@ export interface SetRecord {
   id: string;
   sessionExerciseId: string;
   setNumber: number;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
   effort?: Effort | null;
@@ -137,6 +144,8 @@ export interface SetRecord {
 export type LastTimeSetsItem = {
   setNumber: number;
   weightKg?: number | null;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   effort?: Effort | null;
 };
@@ -154,6 +163,8 @@ export interface SessionExerciseWithSets {
   name: string;
   sortOrder: number;
   targetSets?: number | null;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps?: number | null;
   targetWeightKg?: number | null;
   notes?: string | null;
@@ -193,6 +204,8 @@ export interface CreateSessionExerciseBody {
   name: string;
   sortOrder: number;
   targetSets?: number | null;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps?: number | null;
   targetWeightKg?: number | null;
   planExerciseId?: string | null;
@@ -213,6 +226,8 @@ export interface CreateSessionBody {
 export interface CreateSetBody {
   sessionExerciseId: string;
   setNumber: number;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
 }
@@ -240,6 +255,8 @@ export interface UpdateSessionExerciseBody {
 }
 
 export interface UpdateSetBody {
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
   setNumber?: number | null;

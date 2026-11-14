@@ -21,6 +21,7 @@ export function useStartWorkout() {
             sortOrder: e.sortOrder,
             targetSets: e.targetSets,
             targetReps: e.targetReps,
+            targetSeconds: e.targetSeconds ?? null,
             targetWeightKg: e.targetWeightKg,
             planExerciseId: e.id,
             supersetGroup: e.supersetGroup ?? null,

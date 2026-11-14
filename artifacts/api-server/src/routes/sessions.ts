@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and, ne, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, desc, and, or, ne, sql, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { trashSession } from "../lib/trash.js";
 import {
@@ -23,7 +23,7 @@ function numOrNull(v: string | null | undefined): number | null {
 }
 
 type SessionExerciseWithSets = SessionExercise & { sets: Set[]; planExercise: PlanExercise | null };
-type LastSet = { setNumber: number; weightKg: number | null; reps: number | null; effort: string | null };
+type LastSet = { setNumber: number; weightKg: number | null; reps: number | null; durationSeconds: number | null; effort: string | null };
 /** The sets of the most recent earlier workout that logged this exercise. */
 type LastTime = { date: string; sets: LastSet[] };
 
@@ -34,6 +34,7 @@ function serializeSet(s: Set, lastTime?: LastTime) {
     sessionExerciseId: s.sessionExerciseId,
     setNumber: s.setNumber,
     reps: s.reps,
+    durationSeconds: s.durationSeconds,
     weightKg: numOrNull(s.weightKg),
     effort: s.effort,
     lastReps: last ? last.reps : null,
@@ -50,6 +51,7 @@ function serializeSessionExercise(se: SessionExerciseWithSets, lastTime?: LastTi
     sortOrder: se.sortOrder,
     targetSets: se.targetSets,
     targetReps: se.targetReps,
+    targetSeconds: se.targetSeconds,
     targetWeightKg: numOrNull(se.targetWeightKg),
     notes: se.planExercise?.notes ?? null,
     supersetGroup: se.supersetGroup ?? se.planExercise?.supersetGroup ?? null,
@@ -77,7 +79,7 @@ async function fetchLastSessionSetsForExercises(
           eq(sessionExercises.name, name),
           ne(sessionExercises.sessionId, currentSessionId),
           eq(sessions.userId, userId),
-          sql`EXISTS (SELECT 1 FROM ${sets} WHERE ${sets.sessionExerciseId} = ${sessionExercises.id} AND ${sets.reps} IS NOT NULL)`,
+          sql`EXISTS (SELECT 1 FROM ${sets} WHERE ${sets.sessionExerciseId} = ${sessionExercises.id} AND (${sets.reps} IS NOT NULL OR ${sets.durationSeconds} IS NOT NULL))`,
         ),
       )
       .orderBy(desc(sessions.date), desc(sessions.createdAt))
@@ -85,12 +87,12 @@ async function fetchLastSessionSetsForExercises(
     if (!lastExercise) continue;
 
     const lastSets = await db.query.sets.findMany({
-      where: and(eq(sets.sessionExerciseId, lastExercise.exerciseId), isNotNull(sets.reps)),
+      where: and(eq(sets.sessionExerciseId, lastExercise.exerciseId), or(isNotNull(sets.reps), isNotNull(sets.durationSeconds))),
       orderBy: (s, { asc }) => [asc(s.setNumber)],
     });
     result.set(name, {
       date: lastExercise.date,
-      sets: lastSets.map((s) => ({ setNumber: s.setNumber, weightKg: numOrNull(s.weightKg), reps: s.reps, effort: s.effort })),
+      sets: lastSets.map((s) => ({ setNumber: s.setNumber, weightKg: numOrNull(s.weightKg), reps: s.reps, durationSeconds: s.durationSeconds, effort: s.effort })),
     });
   }
 
@@ -134,10 +136,11 @@ const createSessionExerciseSchema = z.object({
   sortOrder: z.number().int(),
   targetSets: z.number().int().nullable().optional(),
   targetReps: z.number().int().nullable().optional(),
+  targetSeconds: z.number().int().min(1).max(86_400).nullable().optional(),
   targetWeightKg: z.number().nullable().optional(),
   planExerciseId: z.string().nullable().optional(),
   supersetGroup: z.string().max(8).nullable().optional(),
-  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]).nullable().optional(),
+  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "cardio", "other"]).nullable().optional(),
 });
 
 const createSessionSchema = z.object({
@@ -162,6 +165,7 @@ function buildSessionExerciseValues(
     sortOrder: ex.sortOrder ?? i,
     targetSets: ex.targetSets ?? null,
     targetReps: ex.targetReps ?? null,
+    targetSeconds: ex.targetSeconds ?? null,
     targetWeightKg: ex.targetWeightKg != null ? ex.targetWeightKg.toString() : null,
     supersetGroup: ex.supersetGroup ?? null,
     equipment: ex.equipment ?? null,
@@ -273,6 +277,7 @@ router.post("/sessions", async (req, res) => {
             sortOrder: pe.sortOrder,
             targetSets: pe.targetSets,
             targetReps: pe.targetReps,
+            targetSeconds: pe.targetSeconds,
             targetWeightKg: pe.targetWeightKg,
             supersetGroup: pe.supersetGroup,
             equipment: pe.equipment,
@@ -450,6 +455,7 @@ router.post("/sessions/:id/exercises", async (req, res) => {
         sortOrder: parsed.data.sortOrder,
         targetSets: parsed.data.targetSets ?? null,
         targetReps: parsed.data.targetReps ?? null,
+        targetSeconds: parsed.data.targetSeconds ?? null,
         targetWeightKg: parsed.data.targetWeightKg != null ? parsed.data.targetWeightKg.toString() : null,
         supersetGroup: parsed.data.supersetGroup ?? null,
         equipment: parsed.data.equipment ?? null,
@@ -485,8 +491,9 @@ router.delete("/sessions/:id", async (req, res) => {
 const addSetSchema = z.object({
   sessionExerciseId: z.string().min(1),
   setNumber: z.number().int().min(1),
-  reps: z.number().int().nullable().optional(),
-  weightKg: z.number().nullable().optional(),
+  reps: z.number().int().min(0).max(10_000).nullable().optional(),
+  durationSeconds: z.number().int().min(0).max(86_400).nullable().optional(),
+  weightKg: z.number().min(0).max(100_000).nullable().optional(),
 });
 
 router.post("/sessions/:id/sets", async (req, res) => {
@@ -496,7 +503,7 @@ router.post("/sessions/:id/sets", async (req, res) => {
     return;
   }
 
-  const { sessionExerciseId, setNumber, reps, weightKg } = parsed.data;
+  const { sessionExerciseId, setNumber, reps, durationSeconds, weightKg } = parsed.data;
   const sessionId = req.params.id!;
 
   try {
@@ -522,6 +529,7 @@ router.post("/sessions/:id/sets", async (req, res) => {
         sessionExerciseId,
         setNumber,
         reps: reps ?? null,
+        durationSeconds: durationSeconds ?? null,
         weightKg: weightKg != null ? weightKg.toString() : null,
       })
       .returning();

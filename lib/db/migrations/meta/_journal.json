@@ -36,6 +36,13 @@
       "when": 1794612455304,
       "tag": "0004_trash",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794668968724,
+      "tag": "0005_timed_exercises",
+      "breakpoints": true
     }
   ]
 }
