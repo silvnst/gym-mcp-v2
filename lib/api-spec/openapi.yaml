@@ -990,6 +990,11 @@ components:
           description: Exercises sharing a group letter are done as a superset
         equipment:
           $ref: "#/components/schemas/Equipment"
+        lastTime:
+          allOf:
+            - $ref: "#/components/schemas/LastTime"
+          nullable: true
+          description: The logged sets of the most recent earlier workout with this exercise
         sets:
           type: array
           items:
@@ -999,6 +1004,33 @@ components:
         - sessionId
         - name
         - sortOrder
+        - sets
+
+    LastTime:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date of that workout (YYYY-MM-DD)
+        sets:
+          type: array
+          items:
+            type: object
+            properties:
+              setNumber:
+                type: integer
+              weightKg:
+                type: number
+                nullable: true
+              reps:
+                type: integer
+                nullable: true
+              effort:
+                $ref: "#/components/schemas/Effort"
+            required:
+              - setNumber
+      required:
+        - date
         - sets
 
     SessionSummary:

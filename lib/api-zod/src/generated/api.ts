@@ -240,6 +240,15 @@ export const GetSessionResponse = zod.object({
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
   "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
@@ -288,6 +297,15 @@ export const UpdateSessionResponse = zod.object({
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
   "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
@@ -358,6 +376,15 @@ export const UpdateSessionExerciseResponse = zod.object({
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
   "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),

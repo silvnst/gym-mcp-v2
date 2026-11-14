@@ -134,6 +134,19 @@ export interface SetRecord {
   lastWeightKg?: number | null;
 }
 
+export type LastTimeSetsItem = {
+  setNumber: number;
+  weightKg?: number | null;
+  reps?: number | null;
+  effort?: Effort | null;
+};
+
+export interface LastTime {
+  /** Date of that workout (YYYY-MM-DD) */
+  date: string;
+  sets: LastTimeSetsItem[];
+}
+
 export interface SessionExerciseWithSets {
   id: string;
   sessionId: string;
@@ -147,6 +160,8 @@ export interface SessionExerciseWithSets {
   /** Exercises sharing a group letter are done as a superset */
   supersetGroup?: string | null;
   equipment?: Equipment | null;
+  /** The logged sets of the most recent earlier workout with this exercise */
+  lastTime?: LastTime | null;
   sets: SetRecord[];
 }
 

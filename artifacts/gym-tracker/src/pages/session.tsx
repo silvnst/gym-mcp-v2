@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { format, parseISO } from "date-fns";
 import {
   useGetSession,
   useAddSet,
@@ -298,6 +299,29 @@ function SuggestionLine({ step }: { step: Step }) {
   );
 }
 
+/** Every set of this exercise from the last workout that logged it; the one matching the current set stands out. */
+function LastTime({ exercise, currentSetNumber }: { exercise: SessionExerciseWithSets; currentSetNumber: number }) {
+  const last = exercise.lastTime;
+  if (!last || last.sets.length === 0) return null;
+  const equipment = equipmentOf(exercise);
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[13px] text-bp-muted">Last time, {format(parseISO(last.date), "d MMM")}</p>
+      <ol className="flex flex-wrap gap-1.5">
+        {last.sets.map((s) => (
+          <li
+            key={s.setNumber}
+            aria-current={s.setNumber === currentSetNumber ? "true" : undefined}
+            className={cn("px-2.5 py-1 rounded-md bg-bp-surface-2 text-sm tabular", s.setNumber === currentSetNumber ? "text-bp-ink font-bold" : "text-bp-muted")}
+          >
+            {formatSet(s.weightKg, s.reps, equipment)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function SaveBar({ children, onClick, testId }: { children: React.ReactNode; onClick: () => void; testId: string }) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-bp-bg from-70% to-transparent">
@@ -328,7 +352,6 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
     exercise.targetReps != null ? `target ${exercise.targetReps}` : null,
     exercise.targetWeightKg != null ? `at ${formatKg(exercise.targetWeightKg)} kg` : null,
   ].filter(Boolean);
-  const last = formatSet(set.lastWeightKg, set.lastReps, equipment);
 
   return (
     <div className="space-y-5 pt-2 pb-28">
@@ -338,7 +361,6 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
           Set {set.setNumber} of {Math.max(exerciseSets.length, exercise.targetSets ?? 0)}
           {targetBits.length > 0 && `, ${targetBits.join(" ")}`}
         </p>
-        {last && <p className="text-sm text-bp-muted tabular">Last time {last}</p>}
         {exercise.notes && <p className="text-sm text-bp-muted pt-1">{exercise.notes}</p>}
       </div>
 
@@ -351,6 +373,7 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
 
       <SuggestionLine step={step} />
       {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
+      <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
 
       <SaveBar onClick={() => onSave(usesWeight ? draft.weight : null, draft.reps)} testId="button-save-set">
         {ctaLabel}
@@ -383,14 +406,10 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
         const { exercise, set } = step;
         const { equipment, usesWeight } = setContext(step);
         const draft = drafts[set.id]!;
-        const last = formatSet(set.lastWeightKg, set.lastReps, equipment);
         return (
           <Card key={set.id} as="section" className="space-y-3.5">
             <div>
-              <div className="flex justify-between items-baseline gap-3">
-                <h2 className="font-display font-extrabold text-[22px] leading-6 min-w-0 truncate">{exercise.name}</h2>
-                {last && <p className="text-[13px] text-bp-muted tabular shrink-0">Last time {last}</p>}
-              </div>
+              <h2 className="font-display font-extrabold text-[22px] leading-6 truncate">{exercise.name}</h2>
               {exercise.notes && <p className="text-[13px] text-bp-muted pt-1">{exercise.notes}</p>}
             </div>
             <div className={cn("grid gap-3", usesWeight ? "grid-cols-2" : "grid-cols-1")}>
@@ -408,6 +427,7 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
             </div>
             <SuggestionLine step={step} />
             {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
+            <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
           </Card>
         );
       })}

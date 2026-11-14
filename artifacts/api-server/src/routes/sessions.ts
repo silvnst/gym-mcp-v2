@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, ne, sql, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { trashSession } from "../lib/trash.js";
 import {
@@ -23,10 +23,12 @@ function numOrNull(v: string | null | undefined): number | null {
 }
 
 type SessionExerciseWithSets = SessionExercise & { sets: Set[]; planExercise: PlanExercise | null };
-type LastSetMap = Map<number, { weightKg: number | null; reps: number | null }>;
+type LastSet = { setNumber: number; weightKg: number | null; reps: number | null; effort: string | null };
+/** The sets of the most recent earlier workout that logged this exercise. */
+type LastTime = { date: string; sets: LastSet[] };
 
-function serializeSet(s: Set, lastBySetNumber?: LastSetMap) {
-  const last = lastBySetNumber?.get(s.setNumber);
+function serializeSet(s: Set, lastTime?: LastTime) {
+  const last = lastTime?.sets.find((l) => l.setNumber === s.setNumber);
   return {
     id: s.id,
     sessionExerciseId: s.sessionExerciseId,
@@ -39,7 +41,7 @@ function serializeSet(s: Set, lastBySetNumber?: LastSetMap) {
   };
 }
 
-function serializeSessionExercise(se: SessionExerciseWithSets, lastBySetNumber?: LastSetMap) {
+function serializeSessionExercise(se: SessionExerciseWithSets, lastTime?: LastTime) {
   return {
     id: se.id,
     sessionId: se.sessionId,
@@ -52,7 +54,8 @@ function serializeSessionExercise(se: SessionExerciseWithSets, lastBySetNumber?:
     notes: se.planExercise?.notes ?? null,
     supersetGroup: se.supersetGroup ?? se.planExercise?.supersetGroup ?? null,
     equipment: se.equipment ?? se.planExercise?.equipment ?? null,
-    sets: se.sets.map((s) => serializeSet(s, lastBySetNumber)),
+    lastTime: lastTime ?? null,
+    sets: se.sets.map((s) => serializeSet(s, lastTime)),
   };
 }
 
@@ -60,18 +63,13 @@ async function fetchLastSessionSetsForExercises(
   exerciseNames: string[],
   currentSessionId: string,
   userId: string,
-): Promise<Map<string, LastSetMap>> {
-  if (exerciseNames.length === 0) return new Map();
-
-  const result = new Map<string, LastSetMap>();
+): Promise<Map<string, LastTime>> {
+  const result = new Map<string, LastTime>();
 
   for (const name of exerciseNames) {
-    const lastExercise = await db
-      .select({
-        exerciseId: sessionExercises.id,
-        sessionDate: sessions.date,
-        sessionCreatedAt: sessions.createdAt,
-      })
+    // Workouts where the exercise was planned but nothing was logged don't count
+    const [lastExercise] = await db
+      .select({ exerciseId: sessionExercises.id, date: sessions.date })
       .from(sessionExercises)
       .innerJoin(sessions, eq(sessionExercises.sessionId, sessions.id))
       .where(
@@ -79,27 +77,21 @@ async function fetchLastSessionSetsForExercises(
           eq(sessionExercises.name, name),
           ne(sessionExercises.sessionId, currentSessionId),
           eq(sessions.userId, userId),
+          sql`EXISTS (SELECT 1 FROM ${sets} WHERE ${sets.sessionExerciseId} = ${sessionExercises.id} AND ${sets.reps} IS NOT NULL)`,
         ),
       )
       .orderBy(desc(sessions.date), desc(sessions.createdAt))
       .limit(1);
+    if (!lastExercise) continue;
 
-    if (lastExercise.length === 0) continue;
-
-    const lastExerciseId = lastExercise[0]!.exerciseId;
     const lastSets = await db.query.sets.findMany({
-      where: eq(sets.sessionExerciseId, lastExerciseId),
+      where: and(eq(sets.sessionExerciseId, lastExercise.exerciseId), isNotNull(sets.reps)),
       orderBy: (s, { asc }) => [asc(s.setNumber)],
     });
-
-    const bySetNumber: LastSetMap = new Map();
-    for (const s of lastSets) {
-      bySetNumber.set(s.setNumber, {
-        weightKg: numOrNull(s.weightKg),
-        reps: s.reps,
-      });
-    }
-    result.set(name, bySetNumber);
+    result.set(name, {
+      date: lastExercise.date,
+      sets: lastSets.map((s) => ({ setNumber: s.setNumber, weightKg: numOrNull(s.weightKg), reps: s.reps, effort: s.effort })),
+    });
   }
 
   return result;
