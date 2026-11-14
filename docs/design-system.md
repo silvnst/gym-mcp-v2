@@ -31,7 +31,7 @@ Die Tokens leben in `artifacts/gym-tracker/src/index.css` (`--bp-*`), die Bauste
 | `bp-done` | `#14402a` | `#c8f2d2` | Erledigte Sätze, Tipps |
 | `bp-data-2` | `#3b6cf0` | `#1d4ed8` | Zweite Datenreihe, weisser Text |
 | `bp-warn` / `bp-warn-soft` | `#ff8a8a` / `#3a1416` | `#b3141a` / `#ffd9d6` | Hinweise, Löschen |
-| `plate-25/20/15/10/5/change` | rot, blau, gelb, grün, weiss, chrom | gleich | Nur in der Scheiben-Anzeige und als Datums-Kachel im Verlauf |
+| `plate-25/20/15/10/5/change` | rot, blau, gelb, grün, weiss, chrom | gleich | Nur für die Scheiben pro Seite und den trainierten Wochentag (grün). Datums-Kacheln im Verlauf sind neutral (`bp-surface-2`) |
 
 Alle Text-Paare erreichen 4.5:1, Konturen und Diagrammfarben 3:1.
 

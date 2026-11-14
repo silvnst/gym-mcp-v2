@@ -160,12 +160,12 @@ function SessionReadView({ session }: { session: SessionWithDetail }) {
         <h1 className="text-2xl font-display font-bold mb-2">{session.name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
           <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-primary" />
+            <Calendar className="h-3.5 w-3.5 text-bp-muted" />
             {format(parseISO(session.date), "EEE, MMM d, yyyy")}
           </span>
           {session.durationMin != null && (
             <span className="flex items-center gap-1.5" data-testid="text-session-duration">
-              <Clock className="h-3.5 w-3.5 text-primary" />
+              <Clock className="h-3.5 w-3.5 text-bp-muted" />
               {formatDuration(session.durationMin)}
             </span>
           )}
@@ -363,8 +363,8 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+          <div className="space-y-1.5 min-w-0">
             <label className={labelCls}>Date</label>
             <Input
               type="date"
@@ -372,10 +372,10 @@ function SessionEditView({ session }: { session: SessionWithDetail }) {
               onChange={(e) => setDate(e.target.value)}
               onBlur={saveMeta}
               data-testid="input-edit-session-date"
-              className="rounded-[10px] bg-muted/50 border-border"
+              className="block w-full min-w-0 appearance-none rounded-[10px] bg-muted/50 border-border"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <label className={labelCls}>Duration (min)</label>
             <Input
               type="text"
@@ -551,7 +551,7 @@ function ExerciseEditor({
       )}
 
       <button
-        className="mt-2 w-full text-xs font-semibold text-primary flex items-center justify-center gap-1 py-2.5 rounded-[10px] bg-primary/5 hover:bg-primary/10 transition-colors"
+        className="mt-2 w-full min-h-11 text-sm font-bold text-bp-ink flex items-center justify-center gap-1 rounded-[10px] bg-bp-surface-2"
         onClick={handleAddSet}
         data-testid={`button-edit-add-set-${exercise.id}`}
       >

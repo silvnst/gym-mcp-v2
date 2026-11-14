@@ -6,19 +6,9 @@ import { useListSessions, type SessionSummary } from "@workspace/api-client-reac
 import { BpButton, Card, Chip, PageTitle, SectionLabel } from "@/components/bumper";
 import { cleanName, daysBetween } from "@/lib/training";
 import { formatDuration } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 const GAP_DAYS = 14;
-
-// Each plan gets a plate colour for its date tile, in order of first appearance.
-const TILE_COLOURS = [
-  "bg-plate-25 text-[#111111]",
-  "bg-plate-20 text-white",
-  "bg-plate-10 text-white",
-  "bg-plate-15 text-[#111111]",
-  "bg-plate-5 text-[#111111]",
-];
 
 export default function HistoryPage() {
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -31,7 +21,6 @@ export default function HistoryPage() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n);
   }, [sessions]);
 
-  const colourOf = (name: string) => TILE_COLOURS[Math.max(0, planNames.indexOf(cleanName(name))) % TILE_COLOURS.length]!;
   const visible = (sessions ?? []).filter((s) => !filter || cleanName(s.name) === filter);
 
   // Month headings plus a marker wherever two workouts are more than two weeks apart
@@ -104,7 +93,7 @@ export default function HistoryPage() {
                 data-testid={`card-session-${s.id}`}
                 className="flex gap-3.5 items-center bg-bp-surface rounded-[14px] p-3"
               >
-                <span className={cn("w-[52px] h-[52px] shrink-0 rounded-[10px] flex flex-col items-center justify-center leading-none", colourOf(s.name))}>
+                <span className="w-[52px] h-[52px] shrink-0 rounded-[10px] bg-bp-surface-2 text-bp-ink flex flex-col items-center justify-center leading-none">
                   <span className="text-[11px] font-bold">{format(d, "MMM")}</span>
                   <span className="font-display font-extrabold text-[22px]">{format(d, "d")}</span>
                 </span>

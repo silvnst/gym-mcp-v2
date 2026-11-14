@@ -22,7 +22,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useTheme(); // applies the stored theme choice on load
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-bp-bg text-bp-ink">
+    <div className="flex flex-col min-h-[100dvh] bg-bp-bg text-bp-ink" style={inWorkout ? undefined : { paddingTop: "env(safe-area-inset-top)" }}>
+      {/* Installed app: scrolled content must not show through behind the status bar */}
+      <div aria-hidden="true" className="fixed top-0 left-0 right-0 z-40 bg-bp-bg" style={{ height: "env(safe-area-inset-top)" }} />
+
       {!isOnline && (
         <div
           data-testid="banner-offline"

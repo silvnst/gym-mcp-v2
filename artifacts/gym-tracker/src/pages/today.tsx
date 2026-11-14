@@ -16,6 +16,7 @@ const COMEBACK_DAYS = 14;
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
 const ACTIVE_DAYS = 28;
+const CONTINUE_HOURS = 24;
 
 /**
  * What to train next. Plans used in the last four weeks form the current programme;
@@ -49,7 +50,9 @@ export default function TodayPage() {
 
   const today = new Date();
   const lastSession = sessions?.[0];
-  const unfinished = lastSession && lastSession.durationMin == null && isSameDay(parseISO(lastSession.date), today) ? lastSession : null;
+  // An open workout can be picked up again for a day; after that it counts as abandoned
+  const unfinished =
+    lastSession && lastSession.durationMin == null && today.getTime() - new Date(lastSession.createdAt).getTime() < CONTINUE_HOURS * 3_600_000 ? lastSession : null;
   const daysOff = lastSession ? daysBetween(parseISO(lastSession.date), today) : null;
   const next = plans && sessions ? pickNextPlan(plans, sessions, today) : null;
 

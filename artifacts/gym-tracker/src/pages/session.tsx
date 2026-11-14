@@ -211,7 +211,7 @@ function Workout({ session }: { session: SessionWithDetail }) {
 
   return (
     <div className="-mx-5">
-      <header className="sticky top-0 z-30 bg-bp-bg px-5 pt-3.5 pb-3 space-y-3.5">
+      <header className="sticky top-0 z-30 bg-bp-bg px-5 pb-3 space-y-3.5" style={{ paddingTop: "calc(0.875rem + env(safe-area-inset-top))" }}>
         <div className="flex justify-between items-center gap-3">
           <IconButton
             label={view === "focus" ? "Show all exercises" : "Back to current set"}
