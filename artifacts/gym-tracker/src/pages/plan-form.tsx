@@ -27,6 +27,7 @@ const EQUIPMENT: { value: Exclude<Equipment, null>; label: string }[] = [
   { value: "bodyweight", label: "Bodyweight" },
   { value: "machine", label: "Machine" },
   { value: "cable", label: "Cable" },
+  { value: "cardio", label: "Timed (cardio)" },
   { value: "other", label: "Other" },
 ];
 
@@ -37,6 +38,8 @@ const exerciseSchema = z.object({
   targetSets: z.coerce.number().int().min(1, "At least 1 set"),
   targetReps: z.coerce.number().int().min(1, "At least 1 rep"),
   targetWeightKg: optionalNumber,
+  // Timed exercises: target time in minutes instead of reps and weight
+  targetMinutes: optionalNumber,
   notes: z.string().optional().nullable(),
   supersetGroup: z.string().nullable(),
   equipment: z.string().nullable(),
@@ -55,6 +58,7 @@ const emptyExercise = (): PlanFormValues["exercises"][number] => ({
   targetSets: 3,
   targetReps: 8,
   targetWeightKg: null,
+  targetMinutes: null,
   notes: "",
   supersetGroup: null,
   equipment: null,
@@ -102,6 +106,7 @@ export default function PlanFormPage() {
           targetSets: e.targetSets,
           targetReps: e.targetReps,
           targetWeightKg: e.targetWeightKg ?? null,
+          targetMinutes: e.targetSeconds != null ? e.targetSeconds / 60 : null,
           notes: e.notes ?? "",
           supersetGroup: e.supersetGroup ?? null,
           equipment: e.equipment ?? guessEquipment(e.name),
@@ -125,8 +130,9 @@ export default function PlanFormPage() {
         name: e.name.trim(),
         sortOrder: i,
         targetSets: e.targetSets,
-        targetReps: e.targetReps,
-        targetWeightKg: e.targetWeightKg,
+        targetReps: e.equipment === "cardio" ? 1 : e.targetReps,
+        targetWeightKg: e.equipment === "cardio" ? null : e.targetWeightKg,
+        targetSeconds: e.equipment === "cardio" && e.targetMinutes ? Math.round(e.targetMinutes * 60) : null,
         notes: e.notes?.trim() || null,
         supersetGroup: e.supersetGroup,
         equipment: e.equipment as Equipment,
@@ -236,16 +242,22 @@ export default function PlanFormPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className={cn("grid gap-2", watched[index]?.equipment === "cardio" ? "grid-cols-2" : "grid-cols-3")}>
                   <div>
                     <label htmlFor={id("sets")} className={labelCls}>Sets</label>
                     <input id={id("sets")} type="number" inputMode="numeric" min={1} {...form.register(`exercises.${index}.targetSets`)} className={cn(fieldCls, "tabular text-center")} />
                   </div>
-                  <div>
+                  {watched[index]?.equipment === "cardio" && (
+                    <div>
+                      <label htmlFor={id("minutes")} className={labelCls}>Minutes</label>
+                      <input id={id("minutes")} type="number" inputMode="decimal" step="0.5" min={0} {...form.register(`exercises.${index}.targetMinutes`)} placeholder="Optional" className={cn(fieldCls, "tabular text-center placeholder:text-sm")} />
+                    </div>
+                  )}
+                  <div hidden={watched[index]?.equipment === "cardio"}>
                     <label htmlFor={id("reps")} className={labelCls}>Reps</label>
                     <input id={id("reps")} type="number" inputMode="numeric" min={1} {...form.register(`exercises.${index}.targetReps`)} className={cn(fieldCls, "tabular text-center")} />
                   </div>
-                  <div>
+                  <div hidden={watched[index]?.equipment === "cardio"}>
                     <label htmlFor={id("kg")} className={labelCls}>kg</label>
                     <input id={id("kg")} type="number" inputMode="decimal" step="0.25" min={0} {...form.register(`exercises.${index}.targetWeightKg`)} placeholder="Optional" className={cn(fieldCls, "tabular text-center placeholder:text-xs")} />
                   </div>

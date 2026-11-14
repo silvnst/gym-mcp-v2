@@ -1,8 +1,12 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import {
   addDays,
-  garminConfigured,
-  garminUserId,
+  connectGarmin,
+  disconnectGarmin,
+  garminConnectAvailable,
+  garminLinked,
+  GarminError,
   getGarminActivities,
   getReadiness,
   getSyncStatus,
@@ -13,29 +17,73 @@ import { intParam } from "../lib/query.js";
 
 const router: IRouter = Router();
 
-/** Only the profile the key belongs to sees Garmin data. */
-function linked(userId: string): boolean {
-  return garminConfigured() && garminUserId() === userId;
+/** Garmin data belongs to the profile that connected the account; nobody else sees it. */
+const linked = garminLinked;
+
+async function statusFor(userId: string) {
+  const s = await getSyncStatus(userId);
+  return { ...s, linked: s.configured, canConnect: garminConnectAvailable() };
 }
 
-router.get("/garmin/status", (req, res) => {
-  const s = getSyncStatus();
-  res.json({ ...s, linked: linked(req.userId) });
+router.get("/garmin/status", async (req, res) => {
+  try {
+    res.json(await statusFor(req.userId));
+  } catch (err) {
+    req.log.error({ err }, "Failed to read Garmin status");
+    res.status(500).json({ error: "Failed to read Garmin status" });
+  }
 });
 
 router.post("/garmin/sync", async (req, res) => {
-  if (!linked(req.userId)) {
-    res.status(404).json({ error: "Garmin is not connected to this profile" });
+  try {
+    if (!(await linked(req.userId))) {
+      res.status(404).json({ error: "Garmin is not connected to this profile" });
+      return;
+    }
+    const days = req.body && typeof req.body.days === "number" ? req.body.days : undefined;
+    await syncGarmin(req.userId, days);
+    res.json(await statusFor(req.userId));
+  } catch (err) {
+    req.log.error({ err }, "Failed to sync Garmin");
+    res.status(500).json({ error: "Failed to sync Garmin" });
+  }
+});
+
+const connectSchema = z.object({ apiKey: z.string().trim().min(8).max(500) });
+
+router.put("/garmin/key", async (req, res) => {
+  const parsed = connectSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter the API key from Garmin Connect" });
     return;
   }
-  const days = req.body && typeof req.body.days === "number" ? req.body.days : undefined;
-  const s = await syncGarmin(days);
-  res.json({ ...s, linked: true });
+  try {
+    await connectGarmin(req.userId, parsed.data.apiKey);
+    res.json(await statusFor(req.userId));
+  } catch (err) {
+    if (err instanceof GarminError) {
+      // Garmin refused the key, or this server can't store keys: the message says which
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    req.log.error({ err }, "Failed to connect Garmin");
+    res.status(500).json({ error: "Failed to connect Garmin" });
+  }
+});
+
+router.delete("/garmin/key", async (req, res) => {
+  try {
+    await disconnectGarmin(req.userId);
+    res.json(await statusFor(req.userId));
+  } catch (err) {
+    req.log.error({ err }, "Failed to disconnect Garmin");
+    res.status(500).json({ error: "Failed to disconnect Garmin" });
+  }
 });
 
 router.get("/garmin/readiness", async (req, res) => {
   try {
-    if (!linked(req.userId)) {
+    if (!(await linked(req.userId))) {
       res.json({ available: false });
       return;
     }
@@ -49,7 +97,7 @@ router.get("/garmin/readiness", async (req, res) => {
 
 router.get("/garmin/activities", async (req, res) => {
   try {
-    if (!linked(req.userId)) {
+    if (!(await linked(req.userId))) {
       res.json([]);
       return;
     }

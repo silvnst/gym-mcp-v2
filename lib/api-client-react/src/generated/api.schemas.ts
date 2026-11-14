@@ -68,6 +68,7 @@ export const Equipment = {
   bodyweight: 'bodyweight',
   machine: 'machine',
   cable: 'cable',
+  cardio: 'cardio',
   other: 'other',
 } as const;
 
@@ -77,6 +78,8 @@ export interface PlanExerciseRecord {
   name: string;
   sortOrder: number;
   targetSets: number;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
@@ -97,6 +100,8 @@ export interface CreatePlanExerciseBody {
   name: string;
   sortOrder: number;
   targetSets: number;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps: number;
   targetWeightKg?: number | null;
   notes?: string | null;
@@ -127,11 +132,28 @@ export interface SetRecord {
   id: string;
   sessionExerciseId: string;
   setNumber: number;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
   effort?: Effort | null;
   lastReps?: number | null;
   lastWeightKg?: number | null;
+}
+
+export type LastTimeSetsItem = {
+  setNumber: number;
+  weightKg?: number | null;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
+  reps?: number | null;
+  effort?: Effort | null;
+};
+
+export interface LastTime {
+  /** Date of that workout (YYYY-MM-DD) */
+  date: string;
+  sets: LastTimeSetsItem[];
 }
 
 export interface SessionExerciseWithSets {
@@ -141,12 +163,16 @@ export interface SessionExerciseWithSets {
   name: string;
   sortOrder: number;
   targetSets?: number | null;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps?: number | null;
   targetWeightKg?: number | null;
   notes?: string | null;
   /** Exercises sharing a group letter are done as a superset */
   supersetGroup?: string | null;
   equipment?: Equipment | null;
+  /** The logged sets of the most recent earlier workout with this exercise */
+  lastTime?: LastTime | null;
   sets: SetRecord[];
 }
 
@@ -178,6 +204,8 @@ export interface CreateSessionExerciseBody {
   name: string;
   sortOrder: number;
   targetSets?: number | null;
+  /** Target time in seconds for timed exercises (equipment cardio) */
+  targetSeconds?: number | null;
   targetReps?: number | null;
   targetWeightKg?: number | null;
   planExerciseId?: string | null;
@@ -198,6 +226,8 @@ export interface CreateSessionBody {
 export interface CreateSetBody {
   sessionExerciseId: string;
   setNumber: number;
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
 }
@@ -225,6 +255,8 @@ export interface UpdateSessionExerciseBody {
 }
 
 export interface UpdateSetBody {
+  /** How long a timed set took, in seconds */
+  durationSeconds?: number | null;
   reps?: number | null;
   weightKg?: number | null;
   setNumber?: number | null;
@@ -262,8 +294,10 @@ export type GarminStatusLastResult = {
 
 export interface GarminStatus {
   configured: boolean;
-  /** True when the Garmin key belongs to this profile */
+  /** True when this profile has a Garmin account connected */
   linked: boolean;
+  /** True when profiles can connect their own Garmin account on this server */
+  canConnect?: boolean;
   running: boolean;
   lastSyncAt?: string | null;
   lastError?: string | null;
@@ -349,6 +383,10 @@ limit?: number;
 
 export type GetMuscleSetsParams = {
 days?: number;
+};
+
+export type ConnectGarminBody = {
+  apiKey: string;
 };
 
 export type SyncGarminBody = {

@@ -5,6 +5,7 @@ import { useUpdateMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { House, Dumbbell, TrendingUp, ListChecks, WifiOff, LogOut, Trash2, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useProfile } from "@/lib/profile";
+import { DeleteAccount, GarminSettings } from "@/components/account-settings";
 import { useTheme, type ThemeChoice } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -86,7 +87,7 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Profile and settings">
       <button aria-label="Close" className="absolute inset-0 bg-black/60 cursor-default" onClick={onClose} />
       <div
-        className="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-bp-surface rounded-t-[20px] p-5 space-y-5"
+        className="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-bp-surface rounded-t-[20px] p-5 space-y-5 max-h-[92dvh] overflow-y-auto"
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center justify-between">
@@ -124,6 +125,8 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <GarminSettings />
+
         <Link
           href="/trash"
           onClick={onClose}
@@ -145,6 +148,8 @@ export function ProfileSheet({ onClose }: { onClose: () => void }) {
             Sign out
           </button>
         )}
+
+        <DeleteAccount />
       </div>
     </div>
   );

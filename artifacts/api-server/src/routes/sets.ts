@@ -17,6 +17,7 @@ function serializeSet(s: Set) {
     sessionExerciseId: s.sessionExerciseId,
     setNumber: s.setNumber,
     reps: s.reps,
+    durationSeconds: s.durationSeconds,
     weightKg: numOrNull(s.weightKg),
     effort: s.effort,
   };
@@ -36,6 +37,7 @@ async function findOwnedSet(setId: string, userId: string): Promise<Set | null> 
 
 const updateSetSchema = z.object({
   reps: z.number().int().min(0).max(10_000).nullable().optional(),
+  durationSeconds: z.number().int().min(0).max(86_400).nullable().optional(),
   weightKg: z.number().min(0).max(100_000).nullable().optional(),
   setNumber: z.number().int().min(1).optional(),
   effort: z.enum(["easy", "right", "hard"]).nullable().optional(),
@@ -43,12 +45,13 @@ const updateSetSchema = z.object({
 
 type UpdateSetInput = z.infer<typeof updateSetSchema>;
 
-type SetUpdates = Partial<{ reps: number | null; weightKg: string | null; setNumber: number; effort: string | null }>;
+type SetUpdates = Partial<{ reps: number | null; durationSeconds: number | null; weightKg: string | null; setNumber: number; effort: string | null }>;
 
 function buildSetUpdates(data: UpdateSetInput): SetUpdates {
   const updates: SetUpdates = {};
   if (data.effort !== undefined) updates.effort = data.effort;
   if (data.reps !== undefined) updates.reps = data.reps;
+  if (data.durationSeconds !== undefined) updates.durationSeconds = data.durationSeconds;
   if (data.weightKg !== undefined) updates.weightKg = data.weightKg != null ? data.weightKg.toString() : null;
   if (data.setNumber !== undefined) updates.setNumber = data.setNumber;
   return updates;

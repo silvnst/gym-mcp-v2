@@ -20,6 +20,7 @@ function serializePlanExercise(pe: PlanExercise) {
     sortOrder: pe.sortOrder,
     targetSets: pe.targetSets,
     targetReps: pe.targetReps,
+    targetSeconds: pe.targetSeconds,
     targetWeightKg: numOrNull(pe.targetWeightKg),
     notes: pe.notes,
     supersetGroup: pe.supersetGroup,
@@ -48,13 +49,14 @@ async function getPlanWithExercises(planId: string, userId: string) {
   return serializePlan(plan);
 }
 
-export const equipmentSchema = z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]);
+export const equipmentSchema = z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "cardio", "other"]);
 
 const createPlanExerciseSchema = z.object({
   name: z.string().min(1),
   sortOrder: z.number().int(),
   targetSets: z.number().int().min(1),
   targetReps: z.number().int().min(1),
+  targetSeconds: z.number().int().min(1).max(86_400).nullable().optional(),
   targetWeightKg: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
   supersetGroup: z.string().max(8).nullable().optional(),
@@ -76,6 +78,7 @@ function buildExerciseValues(exercises: CreatePlanInput["exercises"], planId: st
     sortOrder: ex.sortOrder ?? i,
     targetSets: ex.targetSets,
     targetReps: ex.targetReps,
+    targetSeconds: ex.targetSeconds ?? null,
     targetWeightKg: ex.targetWeightKg != null ? ex.targetWeightKg.toString() : null,
     notes: ex.notes ?? null,
     supersetGroup: ex.supersetGroup?.trim() || null,

@@ -36,6 +36,20 @@
       "when": 1794612455304,
       "tag": "0004_trash",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794668968724,
+      "tag": "0005_timed_exercises",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794669265589,
+      "tag": "0006_garmin_key_per_user",
+      "breakpoints": true
     }
   ]
 }

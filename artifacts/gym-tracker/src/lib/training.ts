@@ -15,8 +15,24 @@ export function formatKg(kg: number | null | undefined): string {
   return String(Math.round(kg * 100) / 100);
 }
 
-/** "52.5 × 8", "BW × 4", "8 reps" */
-export function formatSet(weightKg: number | null | undefined, reps: number | null | undefined, equipment?: Equipment | null): string {
+/** "3:00", "0:45" */
+export function formatTime(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Timed exercises (running, bike, rowing machine) log a time instead of weight and reps. */
+export const isTimed = (equipment: Equipment | null | undefined) => equipment === "cardio";
+
+/** "52.5 × 8", "BW × 4", "8 reps", or "3:00" for a timed set */
+export function formatSet(
+  weightKg: number | null | undefined,
+  reps: number | null | undefined,
+  equipment?: Equipment | null,
+  durationSeconds?: number | null,
+): string {
+  if (durationSeconds != null) return formatTime(durationSeconds);
+  if (isTimed(equipment)) return "";
   const w = weightKg != null && weightKg > 0 ? formatKg(weightKg) : equipment === "bodyweight" ? "BW" : null;
   if (w == null && reps == null) return "";
   if (w == null) return `${reps} ${reps === 1 ? "rep" : "reps"}`;
@@ -25,6 +41,7 @@ export function formatSet(weightKg: number | null | undefined, reps: number | nu
 }
 
 export function guessEquipment(name: string): Equipment | null {
+  if (/runner|running|\brun\b|treadmill|\bbike\b|\berg\b|assault|ski.?erg|jog|sprint|\bwalk|cardio|laufband|velo/i.test(name)) return "cardio";
   if (/\b(db|dumbbell|hantel|kurzhantel)/i.test(name)) return "dumbbell";
   if (/pull.?up|chin.?up|push.?up|dip|burpee|box jump|pogo|plank|ab wheel/i.test(name)) return "bodyweight";
   if (/pulldown|pallof|face pull|cable/i.test(name)) return "cable";

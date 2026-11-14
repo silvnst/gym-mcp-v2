@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { format, parseISO } from "date-fns";
 import {
   useGetSession,
   useAddSet,
@@ -23,7 +24,9 @@ import {
   equipmentOf,
   formatKg,
   formatSet,
+  formatTime,
   groupBySuperset,
+  isTimed,
   suggestWeight,
   weightStep,
 } from "@/lib/training";
@@ -33,7 +36,7 @@ import { cn } from "@/lib/utils";
 
 type Round = { key: number; label: string; index: number; total: number };
 type Step = { exercise: SessionExerciseWithSets; set: SetRecord; round: Round | null };
-type SavedSet = { step: Step; weightKg: number | null; reps: number };
+type SavedSet = { step: Step; weightKg: number | null; reps: number | null; durationSeconds: number | null };
 
 /** Supersets alternate round by round (A1 set 1, A2 set 1, A1 set 2 …); single exercises run straight through. */
 function buildSequence(exercises: SessionExerciseWithSets[]): Step[] {
@@ -54,7 +57,7 @@ function buildSequence(exercises: SessionExerciseWithSets[]): Step[] {
 
 const sameRound = (a: Step, b: Step) => a.round != null && b.round != null && a.round.key === b.round.key && a.round.index === b.round.index;
 
-const isDone = (s: SetRecord) => s.reps != null;
+const isDone = (s: SetRecord) => s.reps != null || s.durationSeconds != null;
 
 function useElapsed(startIso: string | undefined) {
   const [now, setNow] = useState(() => Date.now());
@@ -72,13 +75,15 @@ function useElapsed(startIso: string | undefined) {
 
 /* ── Unsaved input ──────────────────────────────────────────────────────── */
 
-type Draft = { weight: number | null; reps: number };
+type Draft = { weight: number | null; reps: number; seconds: number | null };
+const TIME_STEP_SECONDS = 30;
 const DRAFT_PREFIX = "gym.draft.";
 
 function readDraft(setId: string): Draft | null {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_PREFIX + setId) ?? "null") as Draft | null;
-    return d && typeof d.reps === "number" && (d.weight === null || typeof d.weight === "number") ? d : null;
+    if (!d || typeof d.reps !== "number" || (d.weight !== null && typeof d.weight !== "number")) return null;
+    return { ...d, seconds: typeof d.seconds === "number" ? d.seconds : null };
   } catch {
     return null;
   }
@@ -106,15 +111,27 @@ function clearDrafts(setIds?: string[]) {
 function setContext(step: Step) {
   const { exercise, set } = step;
   const equipment = equipmentOf(exercise);
-  const usesWeight = equipment !== "bodyweight";
+  const timed = isTimed(equipment);
+  const usesWeight = !timed && equipment !== "bodyweight";
   const exerciseSets = exercise.sets.slice().sort((a, b) => a.setNumber - b.setNumber);
   const prev = exerciseSets.filter((s) => s.setNumber < set.setNumber && isDone(s)).at(-1);
   const suggestion = suggestWeight(prev?.weightKg ?? null, prev?.effort, equipment);
   const start: Draft = {
     weight: usesWeight ? (set.weightKg ?? suggestion ?? prev?.weightKg ?? exercise.targetWeightKg ?? set.lastWeightKg ?? 0) : null,
     reps: set.reps ?? exercise.targetReps ?? prev?.reps ?? set.lastReps ?? 8,
+    seconds: timed
+      ? (set.durationSeconds ?? exercise.targetSeconds ?? prev?.durationSeconds ?? exercise.lastTime?.sets.find((l) => l.setNumber === set.setNumber)?.durationSeconds ?? 180)
+      : null,
   };
-  return { equipment, usesWeight, exerciseSets, prev, suggestion, start };
+  return { equipment, timed, usesWeight, exerciseSets, prev, suggestion, start };
+}
+
+/** What gets stored for a set: a time for timed exercises, otherwise weight and reps. */
+function toSaved(step: Step, draft: Draft): SavedSet {
+  const { timed, usesWeight } = setContext(step);
+  return timed
+    ? { step, weightKg: null, reps: null, durationSeconds: draft.seconds ?? 0 }
+    : { step, weightKg: usesWeight ? draft.weight : null, reps: draft.reps, durationSeconds: null };
 }
 
 const initialDraft = (step: Step): Draft => (isDone(step.set) ? null : readDraft(step.set.id)) ?? setContext(step).start;
@@ -189,9 +206,9 @@ function Workout({ session }: { session: SessionWithDetail }) {
   };
 
   const saveSets = (sets: SavedSet[]) => {
-    for (const { step, weightKg, reps } of sets) {
+    for (const { step, weightKg, reps, durationSeconds } of sets) {
       updateSet.mutate(
-        { id: step.set.id, data: { weightKg, reps } },
+        { id: step.set.id, data: { weightKg, reps, durationSeconds } },
         {
           onSuccess: () => {
             clearDrafts([step.set.id]);
@@ -259,7 +276,7 @@ function Workout({ session }: { session: SessionWithDetail }) {
           round.length > 1 ? (
             <RoundSet key={`${current.round!.key}-${current.round!.index}`} steps={round} onSave={saveSets} />
           ) : (
-            <FocusSet key={current.set.id} step={current} sequence={sequence} onSave={(w, r) => saveSets([{ step: current, weightKg: w, reps: r }])} />
+            <FocusSet key={current.set.id} step={current} sequence={sequence} onSave={(saved) => saveSets([saved])} />
           )
         )}
       </div>
@@ -298,6 +315,33 @@ function SuggestionLine({ step }: { step: Step }) {
   );
 }
 
+/** Every set of this exercise from the last workout that logged it; the one matching the current set stands out. */
+function LastTime({ exercise, currentSetNumber }: { exercise: SessionExerciseWithSets; currentSetNumber: number }) {
+  const last = exercise.lastTime;
+  if (!last || last.sets.length === 0) return null;
+  const equipment = equipmentOf(exercise);
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[13px] text-bp-muted">Last time, {format(parseISO(last.date), "d MMM")}</p>
+      <ol className="flex flex-wrap gap-1.5">
+        {last.sets.map((s) => (
+          <li
+            key={s.setNumber}
+            aria-current={s.setNumber === currentSetNumber ? "true" : undefined}
+            className={cn("px-2.5 py-1 rounded-md bg-bp-surface-2 text-sm tabular", s.setNumber === currentSetNumber ? "text-bp-ink font-bold" : "text-bp-muted")}
+          >
+            {formatSet(s.weightKg, s.reps, equipment, s.durationSeconds)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function TimeStepper({ value, onChange, label = "Time in minutes", compact }: { value: number | null; onChange: (seconds: number) => void; label?: string; compact?: boolean }) {
+  return <Stepper compact={compact} label={label} unitLabel="min" value={value} onChange={onChange} step={TIME_STEP_SECONDS} stepLabel={`${TIME_STEP_SECONDS} s`} format={formatTime} />;
+}
+
 function SaveBar({ children, onClick, testId }: { children: React.ReactNode; onClick: () => void; testId: string }) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-bp-bg from-70% to-transparent">
@@ -310,9 +354,9 @@ function SaveBar({ children, onClick, testId }: { children: React.ReactNode; onC
   );
 }
 
-function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; onSave: (weightKg: number | null, reps: number) => void }) {
+function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; onSave: (saved: SavedSet) => void }) {
   const { exercise, set } = step;
-  const { equipment, usesWeight, exerciseSets } = setContext(step);
+  const { equipment, timed, usesWeight, exerciseSets } = setContext(step);
   const [draft, setDraft] = useState(() => initialDraft(step));
   const update = (patch: Partial<Draft>) => {
     const next = { ...draft, ...patch };
@@ -324,11 +368,12 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
   const nextStep = sequence.slice(idx + 1).find((s) => !isDone(s.set));
   const ctaLabel = nextStep && nextStep.exercise.id !== exercise.id ? `Save set, then ${nextStep.exercise.name}` : "Save set";
 
-  const targetBits = [
-    exercise.targetReps != null ? `target ${exercise.targetReps}` : null,
-    exercise.targetWeightKg != null ? `at ${formatKg(exercise.targetWeightKg)} kg` : null,
-  ].filter(Boolean);
-  const last = formatSet(set.lastWeightKg, set.lastReps, equipment);
+  const targetBits = timed
+    ? [exercise.targetSeconds != null ? `target ${formatTime(exercise.targetSeconds)}` : null].filter(Boolean)
+    : [
+        exercise.targetReps != null ? `target ${exercise.targetReps}` : null,
+        exercise.targetWeightKg != null ? `at ${formatKg(exercise.targetWeightKg)} kg` : null,
+      ].filter(Boolean);
 
   return (
     <div className="space-y-5 pt-2 pb-28">
@@ -338,21 +383,25 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
           Set {set.setNumber} of {Math.max(exerciseSets.length, exercise.targetSets ?? 0)}
           {targetBits.length > 0 && `, ${targetBits.join(" ")}`}
         </p>
-        {last && <p className="text-sm text-bp-muted tabular">Last time {last}</p>}
         {exercise.notes && <p className="text-sm text-bp-muted pt-1">{exercise.notes}</p>}
       </div>
 
-      <div className={cn("grid gap-3", usesWeight ? "grid-cols-2" : "grid-cols-1")}>
-        {usesWeight && (
-          <Stepper label="Weight in kg" unitLabel="kg" value={draft.weight} onChange={(weight) => update({ weight })} step={weightStep(equipment)} format={formatKg} />
-        )}
-        <Stepper label="Reps" unitLabel={draft.reps === 1 ? "rep" : "reps"} value={draft.reps} onChange={(v) => update({ reps: Math.max(0, Math.round(v)) })} step={1} />
-      </div>
+      {timed ? (
+        <TimeStepper value={draft.seconds} onChange={(seconds) => update({ seconds })} />
+      ) : (
+        <div className={cn("grid gap-3", usesWeight ? "grid-cols-2" : "grid-cols-1")}>
+          {usesWeight && (
+            <Stepper label="Weight in kg" unitLabel="kg" value={draft.weight} onChange={(weight) => update({ weight })} step={weightStep(equipment)} format={formatKg} />
+          )}
+          <Stepper label="Reps" unitLabel={draft.reps === 1 ? "rep" : "reps"} value={draft.reps} onChange={(v) => update({ reps: Math.max(0, Math.round(v)) })} step={1} />
+        </div>
+      )}
 
       <SuggestionLine step={step} />
       {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
+      <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
 
-      <SaveBar onClick={() => onSave(usesWeight ? draft.weight : null, draft.reps)} testId="button-save-set">
+      <SaveBar onClick={() => onSave(toSaved(step, draft))} testId="button-save-set">
         {ctaLabel}
       </SaveBar>
     </div>
@@ -381,19 +430,16 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
 
       {steps.map((step) => {
         const { exercise, set } = step;
-        const { equipment, usesWeight } = setContext(step);
+        const { equipment, timed, usesWeight } = setContext(step);
         const draft = drafts[set.id]!;
-        const last = formatSet(set.lastWeightKg, set.lastReps, equipment);
         return (
           <Card key={set.id} as="section" className="space-y-3.5">
             <div>
-              <div className="flex justify-between items-baseline gap-3">
-                <h2 className="font-display font-extrabold text-[22px] leading-6 min-w-0 truncate">{exercise.name}</h2>
-                {last && <p className="text-[13px] text-bp-muted tabular shrink-0">Last time {last}</p>}
-              </div>
+              <h2 className="font-display font-extrabold text-[22px] leading-6 truncate">{exercise.name}</h2>
               {exercise.notes && <p className="text-[13px] text-bp-muted pt-1">{exercise.notes}</p>}
             </div>
-            <div className={cn("grid gap-3", usesWeight ? "grid-cols-2" : "grid-cols-1")}>
+            {timed && <TimeStepper compact label={`${exercise.name}, time in minutes`} value={draft.seconds} onChange={(seconds) => update(set.id, { seconds })} />}
+            <div hidden={timed} className={cn("grid gap-3", usesWeight ? "grid-cols-2" : "grid-cols-1")}>
               {usesWeight && (
                 <Stepper compact label={`${exercise.name}, weight in kg`} unitLabel="kg" value={draft.weight} onChange={(weight) => update(set.id, { weight })} step={weightStep(equipment)} format={formatKg} />
               )}
@@ -408,13 +454,14 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
             </div>
             <SuggestionLine step={step} />
             {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
+            <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
           </Card>
         );
       })}
 
       <SaveBar
         onClick={() =>
-          onSave(steps.map((step) => ({ step, weightKg: setContext(step).usesWeight ? drafts[step.set.id]!.weight : null, reps: drafts[step.set.id]!.reps })))
+          onSave(steps.map((step) => toSaved(step, drafts[step.set.id]!)))
         }
         testId="button-save-round"
       >
@@ -473,7 +520,7 @@ function AfterSetSheet({
             </h2>
             {single && (
               <p className="text-sm text-bp-muted tabular truncate">
-                {single.step.exercise.name} {formatSet(single.weightKg, single.reps, equipmentOf(single.step.exercise))}
+                {single.step.exercise.name} {formatSet(single.weightKg, single.reps, equipmentOf(single.step.exercise), single.durationSeconds)}
               </p>
             )}
           </div>
@@ -485,7 +532,7 @@ function AfterSetSheet({
           return (
             <div key={id} className="space-y-2">
               <h3 id={labelId} className="font-sans font-bold text-[15px]">
-                {single ? "How did that set feel?" : `${d.step.exercise.name} ${formatSet(d.weightKg, d.reps, equipmentOf(d.step.exercise))}`}
+                {single ? "How did that set feel?" : `${d.step.exercise.name} ${formatSet(d.weightKg, d.reps, equipmentOf(d.step.exercise), d.durationSeconds)}`}
               </h3>
               <div role="group" aria-labelledby={labelId} className="grid grid-cols-3 gap-2">
                 {(["easy", "right", "hard"] as const).map((e) => (
@@ -526,9 +573,9 @@ function AfterSetSheet({
                     {next.round ? `Superset ${next.round.label}, round ${next.round.index + 1}` : `${next.exercise.name}, set ${next.set.setNumber}`}
                   </p>
                 </div>
-                {!next.round && (next.exercise.targetReps != null || next.exercise.targetWeightKg != null) && (
+                {!next.round && (next.exercise.targetReps != null || next.exercise.targetWeightKg != null || next.exercise.targetSeconds != null) && (
                   <span className="text-[15px] tabular shrink-0">
-                    {formatSet(next.exercise.targetWeightKg, next.exercise.targetReps, equipmentOf(next.exercise))}
+                    {formatSet(next.exercise.targetWeightKg, next.exercise.targetReps, equipmentOf(next.exercise), next.exercise.targetSeconds)}
                   </span>
                 )}
               </div>
@@ -608,8 +655,8 @@ function Overview({
                     <p className="font-bold text-[15px] truncate">{ex.name}</p>
                     {(ex.targetSets != null || ex.targetReps != null) && (
                       <p className="text-[13px] text-bp-muted tabular">
-                        {ex.targetSets ?? "?"} × {ex.targetReps ?? "?"}
-                        {ex.targetWeightKg != null ? ` at ${formatKg(ex.targetWeightKg)} kg` : ""}
+                        {ex.targetSets ?? "?"} × {isTimed(equipment) ? (ex.targetSeconds != null ? formatTime(ex.targetSeconds) : "?") : (ex.targetReps ?? "?")}
+                        {ex.targetWeightKg != null && !isTimed(equipment) ? ` at ${formatKg(ex.targetWeightKg)} kg` : ""}
                       </p>
                     )}
                   </div>
@@ -632,8 +679,8 @@ function Overview({
                       const done = isDone(s);
                       const isCurrent = s.id === currentSetId;
                       const text = done
-                        ? formatSet(s.weightKg, s.reps, equipment)
-                        : formatSet(ex.targetWeightKg, ex.targetReps, equipment) || `Set ${s.setNumber}`;
+                        ? formatSet(s.weightKg, s.reps, equipment, s.durationSeconds)
+                        : formatSet(ex.targetWeightKg, ex.targetReps, equipment, ex.targetSeconds) || `Set ${s.setNumber}`;
                       return (
                         <button
                           key={s.id}

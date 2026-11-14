@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "garmin_key" text;

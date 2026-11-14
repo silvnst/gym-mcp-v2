@@ -119,6 +119,7 @@ export function Stepper({
   min = 0,
   format = (v) => String(v),
   unitLabel,
+  stepLabel,
   compact = false,
 }: {
   label: string;
@@ -128,11 +129,13 @@ export function Stepper({
   min?: number;
   format?: (v: number) => string;
   unitLabel: string;
+  /** What the ± buttons show when the step isn't a plain number, e.g. "30 s". */
+  stepLabel?: string;
   /** Sits inside a card that already names the exercise: no own surface, smaller figure with the unit. */
   compact?: boolean;
 }) {
   const current = value ?? 0;
-  const stepText = formatKg(step);
+  const stepText = stepLabel ?? formatKg(step);
   return (
     <div className={cn("flex flex-col items-center min-w-0", compact ? "gap-2" : "bg-bp-surface rounded-[14px] p-3 gap-2.5")}>
       <span className={compact ? "sr-only" : "text-[13px] text-bp-muted"}>{label}</span>

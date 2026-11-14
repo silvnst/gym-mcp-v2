@@ -68,6 +68,8 @@ Open your **app service** → **Variables** tab → **New Variable** (changes ar
 | `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`, `VITE_AUTH0_AUDIENCE` | ✅ | Frontend Auth0 settings, read at **build** time. |
 | `NODE_ENV` | optional | `production` |
 | `FRONTEND_ORIGIN` | optional | Restrict CORS to your app's URL (defaults to `*`) |
+| `SECRETS_KEY` | optional | Long random string. Lets each profile connect its own Garmin account (keys are stored encrypted). See `docs/auth.md`. |
+| `AUTH_ALLOW_ANY_USER` | optional | `true` lets anyone with a verified email sign up. See `docs/auth.md`. |
 
 > **Where do secrets go?** Railway has no separate "secrets" store — service **Variables** are encrypted and injected as environment variables at runtime, so `DATABASE_URL` and the Auth0 settings go in the Variables tab. Use **Shared Variables** (Project Settings → Shared Variables) if you want to reuse a value across services. `PORT` is injected automatically by Railway — don't set it.
 

@@ -28,6 +28,14 @@ export const GetMeResponse = zod.object({
 
 
 /**
+ * @summary Delete the signed-in user's profile with all its data
+ */
+export const DeleteMeResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary Rename the signed-in user's profile
  */
 export const UpdateMeBody = zod.object({
@@ -55,11 +63,12 @@ export const ListPlansResponseItem = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 export const ListPlansResponse = zod.array(ListPlansResponseItem)
@@ -75,11 +84,12 @@ export const CreatePlanBody = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -102,11 +112,12 @@ export const GetPlanResponse = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -125,11 +136,12 @@ export const UpdatePlanBody = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -144,11 +156,12 @@ export const UpdatePlanResponse = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 }))
 })
 
@@ -204,11 +217,12 @@ export const CreateSessionBody = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number().nullish(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "planExerciseId": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 })).nullish()
 })
 
@@ -235,15 +249,27 @@ export const GetSessionResponse = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number().nullish(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
   "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
@@ -283,15 +309,27 @@ export const UpdateSessionResponse = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number().nullish(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
   "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
@@ -325,11 +363,12 @@ export const AddSessionExerciseBody = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number().nullish(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "planExerciseId": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish()
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
 })
 
 
@@ -353,15 +392,27 @@ export const UpdateSessionExerciseResponse = zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
   "targetSets": zod.number().nullish(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
   "targetReps": zod.number().nullish(),
   "targetWeightKg": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
-  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "lastTime": zod.object({
+  "date": zod.string().describe('Date of that workout (YYYY-MM-DD)'),
+  "sets": zod.array(zod.object({
+  "setNumber": zod.number(),
+  "weightKg": zod.number().nullish(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
+  "reps": zod.number().nullish(),
+  "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt')
+}))
+}).nullish().describe('The logged sets of the most recent earlier workout with this exercise'),
   "sets": zod.array(zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
   "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),
@@ -394,6 +445,7 @@ export const AddSetParams = zod.object({
 export const AddSetBody = zod.object({
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish()
 })
@@ -508,7 +560,50 @@ export const RestoreTrashItemResponse = zod.object({
  */
 export const GetGarminStatusResponse = zod.object({
   "configured": zod.boolean(),
-  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Connect this profile to a Garmin account with a personal API key
+ */
+export const ConnectGarminBody = zod.object({
+  "apiKey": zod.string()
+})
+
+export const ConnectGarminResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Remove this profile's Garmin key and the data synced with it
+ */
+export const DisconnectGarminResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
   "running": zod.boolean(),
   "lastSyncAt": zod.string().nullish(),
   "lastError": zod.string().nullish(),
@@ -530,7 +625,8 @@ export const SyncGarminBody = zod.object({
 
 export const SyncGarminResponse = zod.object({
   "configured": zod.boolean(),
-  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
   "running": zod.boolean(),
   "lastSyncAt": zod.string().nullish(),
   "lastError": zod.string().nullish(),
@@ -604,6 +700,7 @@ export const UpdateSetParams = zod.object({
 })
 
 export const UpdateSetBody = zod.object({
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
   "setNumber": zod.number().nullish(),
@@ -614,6 +711,7 @@ export const UpdateSetResponse = zod.object({
   "id": zod.string(),
   "sessionExerciseId": zod.string(),
   "setNumber": zod.number(),
+  "durationSeconds": zod.number().nullish().describe('How long a timed set took, in seconds'),
   "reps": zod.number().nullish(),
   "weightKg": zod.number().nullish(),
   "effort": zod.union([zod.literal('easy'),zod.literal('right'),zod.literal('hard'),zod.literal(null)]).nullish().describe('How the set felt'),

@@ -22,8 +22,7 @@ import { getDefaultUserId, sendAuthError } from "../middlewares/user-context.js"
 import { authDisabled, bearerToken, userFromToken, wwwAuthenticate } from "../lib/auth.js";
 import {
   addDays,
-  garminConfigured,
-  garminUserId,
+  garminLinked,
   getGarminActivities,
   getGarminDays,
   getReadiness,
@@ -85,10 +84,11 @@ const planExerciseInputSchema = z.object({
   name: z.string().min(1),
   target_sets: z.number().int().min(1),
   target_reps: z.number().int().min(1),
+  target_seconds: z.number().int().min(1).max(86_400).nullable().optional(),
   target_weight_kg: z.number().min(0).nullable().optional(),
   notes: z.string().nullable().optional(),
   superset_group: z.string().max(8).nullable().optional(),
-  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"]).nullable().optional(),
+  equipment: z.enum(["barbell", "dumbbell", "bodyweight", "machine", "cable", "cardio", "other"]).nullable().optional(),
 });
 
 const createPlanArgsSchema = z.object({
@@ -110,6 +110,7 @@ const deletePlanArgsSchema = z.object({
 
 const logSessionSetSchema = z.object({
   reps: z.number().int().min(0).nullable().optional(),
+  duration_seconds: z.number().int().min(0).max(86_400).nullable().optional(),
   weight_kg: z.number().min(0).nullable().optional(),
 });
 
@@ -315,6 +316,7 @@ function createMcpServer(userId: string): Server {
                   name: { type: "string", description: "Exercise name." },
                   target_sets: { type: "number", description: "Number of sets." },
                   target_reps: { type: "number", description: "Target reps per set." },
+                  target_seconds: { type: "number", description: "For timed exercises (equipment cardio): target time in seconds. Set target_reps to 1." },
                   target_weight_kg: { type: "number", description: "Target weight in kg (optional)." },
                   notes: { type: "string", description: "Optional exercise notes." },
                   superset_group: {
@@ -323,7 +325,7 @@ function createMcpServer(userId: string): Server {
                   },
                   equipment: {
                     type: "string",
-                    enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"],
+                    enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "cardio", "other"],
                     description: "Optional equipment. Barbell exercises get a plate calculator in the app.",
                   },
                 },
@@ -354,10 +356,11 @@ function createMcpServer(userId: string): Server {
                   name: { type: "string" },
                   target_sets: { type: "number" },
                   target_reps: { type: "number" },
+                  target_seconds: { type: "number", description: "For timed exercises (equipment cardio): target time in seconds. Set target_reps to 1." },
                   target_weight_kg: { type: "number" },
                   notes: { type: "string" },
                   superset_group: { type: "string", description: "Optional superset label, e.g. 'A'." },
-                  equipment: { type: "string", enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "other"] },
+                  equipment: { type: "string", enum: ["barbell", "dumbbell", "bodyweight", "machine", "cable", "cardio", "other"] },
                 },
                 required: ["name", "target_sets", "target_reps"],
               },
@@ -417,6 +420,7 @@ function createMcpServer(userId: string): Server {
                       type: "object",
                       properties: {
                         reps: { type: "number", description: "Reps performed (integer)." },
+                        duration_seconds: { type: "number", description: "For timed sets: how long the set took, in seconds. Leave reps and weight empty." },
                         weight_kg: { type: "number", description: "Weight in kg." },
                       },
                     },
@@ -525,10 +529,12 @@ function createMcpServer(userId: string): Server {
               name: se.name,
               targetSets: se.targetSets,
               targetReps: se.targetReps,
+              targetSeconds: se.targetSeconds,
               targetWeightKg: numOrNull(se.targetWeightKg),
               sets: se.sets.map((s) => ({
                 setNumber: s.setNumber,
                 reps: s.reps,
+                durationSeconds: s.durationSeconds,
                 weightKg: numOrNull(s.weightKg),
               })),
             })),
@@ -576,10 +582,12 @@ function createMcpServer(userId: string): Server {
               name: se.name,
               targetSets: se.targetSets,
               targetReps: se.targetReps,
+              targetSeconds: se.targetSeconds,
               targetWeightKg: numOrNull(se.targetWeightKg),
               sets: se.sets.map((s) => ({
                 setNumber: s.setNumber,
                 reps: s.reps,
+                durationSeconds: s.durationSeconds,
                 weightKg: numOrNull(s.weightKg),
               })),
             })),
@@ -609,6 +617,7 @@ function createMcpServer(userId: string): Server {
               sortOrder: pe.sortOrder,
               targetSets: pe.targetSets,
               targetReps: pe.targetReps,
+              targetSeconds: pe.targetSeconds,
               targetWeightKg: numOrNull(pe.targetWeightKg),
               notes: pe.notes,
               supersetGroup: pe.supersetGroup,
@@ -812,10 +821,12 @@ function createMcpServer(userId: string): Server {
                 name: se.name,
                 targetSets: se.targetSets,
                 targetReps: se.targetReps,
+                targetSeconds: se.targetSeconds,
                 targetWeightKg: numOrNull(se.targetWeightKg),
                 sets: se.sets.map((s) => ({
                   setNumber: s.setNumber,
                   reps: s.reps,
+                  durationSeconds: s.durationSeconds,
                   weightKg: numOrNull(s.weightKg),
                 })),
               })),
@@ -872,6 +883,7 @@ function createMcpServer(userId: string): Server {
                   sortOrder: i,
                   targetSets: ex.target_sets,
                   targetReps: ex.target_reps,
+                  targetSeconds: ex.target_seconds ?? null,
                   targetWeightKg: ex.target_weight_kg != null ? ex.target_weight_kg.toString() : null,
                   notes: ex.notes ?? null,
                   supersetGroup: ex.superset_group?.trim() || null,
@@ -918,6 +930,7 @@ function createMcpServer(userId: string): Server {
                   sortOrder: i,
                   targetSets: ex.target_sets,
                   targetReps: ex.target_reps,
+                  targetSeconds: ex.target_seconds ?? null,
                   targetWeightKg: ex.target_weight_kg != null ? ex.target_weight_kg.toString() : null,
                   notes: ex.notes ?? null,
                   supersetGroup: ex.superset_group?.trim() || null,
@@ -1000,6 +1013,7 @@ function createMcpServer(userId: string): Server {
                     sessionExerciseId: se.id,
                     setNumber: si + 1,
                     reps: s.reps ?? null,
+                    durationSeconds: s.duration_seconds ?? null,
                     weightKg: s.weight_kg != null ? s.weight_kg.toString() : null,
                   })),
                 );
@@ -1118,9 +1132,9 @@ function createMcpServer(userId: string): Server {
         case "get_garmin_activities":
         case "get_readiness":
         case "sync_garmin": {
-          if (!garminConfigured() || garminUserId() !== userId) {
+          if (!(await garminLinked(userId))) {
             return {
-              content: [{ type: "text", text: "Garmin is not connected to this profile. Set GARMIN_API_KEY on the server (it links to the default profile, or to GARMIN_USER_ID)." }],
+              content: [{ type: "text", text: "Garmin is not connected to this profile. Connect it in the app: profile menu, Garmin, enter the API key from Garmin Connect." }],
               isError: true,
             };
           }
@@ -1141,7 +1155,7 @@ function createMcpServer(userId: string): Server {
             result = (await getReadiness(userId)) ?? { available: false, note: "No Garmin data stored yet. Try sync_garmin." };
           } else {
             const days = typeof a["days"] === "number" ? a["days"] : undefined;
-            result = await syncGarmin(days);
+            result = await syncGarmin(userId, days);
           }
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

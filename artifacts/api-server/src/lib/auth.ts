@@ -160,6 +160,11 @@ async function fetchUserInfo(token: string): Promise<{ email?: string; email_ver
 
 const subCache = new Map<string, string>();
 
+/** Drops a deleted profile from the login cache so its next sign-in starts fresh. */
+export function forgetUser(userId: string): void {
+  for (const [sub, id] of subCache) if (id === userId) subCache.delete(sub);
+}
+
 async function findProfileForClaim(target: string): Promise<User | undefined> {
   const byName = await db
     .select()
