@@ -55,6 +55,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMe
+      tags: [users]
+      summary: Delete the signed-in user's profile with all its data
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
     patch:
       operationId: updateMe
       tags: [users]
@@ -618,6 +629,46 @@ paths:
       responses:
         "200":
           description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GarminStatus"
+
+  /garmin/key:
+    put:
+      operationId: connectGarmin
+      tags: [garmin]
+      summary: Connect this profile to a Garmin account with a personal API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                apiKey:
+                  type: string
+              required: [apiKey]
+      responses:
+        "200":
+          description: Connected; the first sync has started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GarminStatus"
+        "400":
+          description: Garmin refused the key, or this server can't store keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: disconnectGarmin
+      tags: [garmin]
+      summary: Remove this profile's Garmin key and the data synced with it
+      responses:
+        "200":
+          description: Disconnected
           content:
             application/json:
               schema:
@@ -1322,7 +1373,10 @@ components:
           type: boolean
         linked:
           type: boolean
-          description: True when the Garmin key belongs to this profile
+          description: True when this profile has a Garmin account connected
+        canConnect:
+          type: boolean
+          description: True when profiles can connect their own Garmin account on this server
         running:
           type: boolean
         lastSyncAt:

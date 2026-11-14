@@ -2,16 +2,18 @@
  * Garmin Connect Personal API: token exchange, read-only requests and a sync
  * that stores daily wellness metrics and activities in Postgres.
  *
- * Auth: the personal API key (GARMIN_API_KEY) is exchanged for a JWT valid ~24h.
- * There are no refresh tokens; a new exchange is made when the token runs out.
- * The API is pull-only, so the server syncs on boot, on a timer and on demand.
+ * Auth: a personal API key is exchanged for a JWT valid ~24h. There are no
+ * refresh tokens; a new exchange is made when the token runs out. The API is
+ * pull-only, so the server syncs on boot, on a timer and on demand.
  *
- * The key belongs to one Garmin account, linked to one profile: GARMIN_USER_ID
- * if set, else the default (oldest) profile.
+ * Every profile can connect its own Garmin account: the key is stored encrypted
+ * in users.garmin_key. The older server-wide GARMIN_API_KEY still works for one
+ * profile (GARMIN_USER_ID if set, else the oldest profile) that has no own key.
  */
-import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { db, garminActivities, garminDays } from "@workspace/db";
+import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
+import { db, garminActivities, garminDays, users } from "@workspace/db";
 import { logger } from "./logger.js";
+import { decryptSecret, encryptSecret, secretsAvailable } from "./secrets.js";
 import { getDefaultUserId } from "../middlewares/user-context.js";
 
 const BASE_URL = (process.env["GARMIN_API_BASE_URL"] ?? "https://personal.connectapi.garmin.com").replace(/\/+$/, "");
@@ -33,20 +35,72 @@ export class GarminError extends Error {
   }
 }
 
-/* ── Config ──────────────────────────────────────────────────────────────── */
+/* ── Accounts ────────────────────────────────────────────────────────────── */
 
-export function garminConfigured(): boolean {
-  return !!process.env["GARMIN_API_KEY"]?.trim();
-}
+export type SyncStatus = {
+  configured: boolean;
+  running: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  lastResult: { days: number; activities: number; from: string; to: string } | null;
+};
 
-export function garminUserId(): string {
+/** What the server keeps in memory per connected profile. */
+type Account = {
+  userId: string;
+  key: string;
+  token: { value: string; refreshAt: number } | null;
+  tokenInFlight: Promise<string> | null;
+  status: SyncStatus;
+  running: Promise<SyncStatus> | null;
+};
+
+const accounts = new Map<string, Account>();
+
+/** The profile the server-wide GARMIN_API_KEY belongs to, if that key is set. */
+function legacyOwner(): string | null {
+  if (!process.env["GARMIN_API_KEY"]?.trim()) return null;
   return process.env["GARMIN_USER_ID"]?.trim() || getDefaultUserId();
 }
 
-/* ── Token ───────────────────────────────────────────────────────────────── */
+/** The Garmin key of a profile: its own stored key, else the server-wide one if it owns that. */
+async function keyFor(userId: string): Promise<string | null> {
+  const [row] = await db.select({ garminKey: users.garminKey }).from(users).where(eq(users.id, userId));
+  const own = row?.garminKey ? decryptSecret(row.garminKey) : null;
+  if (own) return own;
+  return legacyOwner() === userId ? process.env["GARMIN_API_KEY"]!.trim() : null;
+}
 
-let token: { value: string; refreshAt: number } | null = null;
-let tokenInFlight: Promise<string> | null = null;
+async function accountFor(userId: string): Promise<Account | null> {
+  const key = await keyFor(userId);
+  if (!key) {
+    accounts.delete(userId);
+    return null;
+  }
+  let acct = accounts.get(userId);
+  if (!acct || acct.key !== key) {
+    acct = {
+      userId,
+      key,
+      token: null,
+      tokenInFlight: null,
+      status: { configured: true, running: false, lastSyncAt: null, lastError: null, lastResult: null },
+      running: null,
+    };
+    accounts.set(userId, acct);
+  }
+  return acct;
+}
+
+/** Whether this profile has a Garmin account connected. */
+export async function garminLinked(userId: string): Promise<boolean> {
+  return (await keyFor(userId)) !== null;
+}
+
+/** Whether profiles can connect their own Garmin account on this server. */
+export const garminConnectAvailable = secretsAvailable;
+
+/* ── Token ───────────────────────────────────────────────────────────────── */
 
 function jwtExp(jwt: string): number | null {
   try {
@@ -57,9 +111,7 @@ function jwtExp(jwt: string): number | null {
   }
 }
 
-async function exchangeToken(): Promise<string> {
-  const key = process.env["GARMIN_API_KEY"]?.trim();
-  if (!key) throw new GarminError(0, TOKEN_PATH, "GARMIN_API_KEY is not set");
+async function exchangeToken(key: string): Promise<{ value: string; refreshAt: number }> {
   const res = await fetch(BASE_URL + TOKEN_PATH, {
     method: "POST",
     headers: { Accept: "*/*", Authorization: `ApiKey ${key}` },
@@ -82,34 +134,38 @@ async function exchangeToken(): Promise<string> {
   }
   const now = Date.now();
   const exp = jwtExp(value) ?? now + 23 * 3600_000;
-  token = { value, refreshAt: now + Math.max(exp - now - 3600_000, (exp - now) / 2) };
-  return value;
+  return { value, refreshAt: now + Math.max(exp - now - 3600_000, (exp - now) / 2) };
 }
 
-async function getToken(): Promise<string> {
-  if (token && Date.now() < token.refreshAt) return token.value;
-  tokenInFlight ??= exchangeToken().finally(() => {
-    tokenInFlight = null;
-  });
-  return tokenInFlight;
+async function getToken(acct: Account): Promise<string> {
+  if (acct.token && Date.now() < acct.token.refreshAt) return acct.token.value;
+  acct.tokenInFlight ??= exchangeToken(acct.key)
+    .then((token) => {
+      acct.token = token;
+      return token.value;
+    })
+    .finally(() => {
+      acct.tokenInFlight = null;
+    });
+  return acct.tokenInFlight;
 }
 
 /* ── Requests ────────────────────────────────────────────────────────────── */
 
-async function getJson(path: string, query: Record<string, string | number | undefined> = {}): Promise<unknown> {
+async function getJson(acct: Account, path: string, query: Record<string, string | number | undefined> = {}): Promise<unknown> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) if (v !== undefined) qs.append(k, String(v));
   const url = BASE_URL + path + (qs.size ? `?${qs}` : "");
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const bearer = await getToken();
+    const bearer = await getToken(acct);
     const res = await fetch(url, {
       headers: { Accept: "application/json", Authorization: `Bearer ${bearer}` },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (res.status === 401 && attempt === 0) {
       await res.body?.cancel();
-      if (token?.value === bearer) token = null;
+      if (acct.token?.value === bearer) acct.token = null;
       continue;
     }
     if (res.status === 204) return null;
@@ -260,21 +316,13 @@ function chunks(from: string, to: string): [string, string][] {
 
 /* ── Sync ────────────────────────────────────────────────────────────────── */
 
-export type SyncStatus = {
-  configured: boolean;
-  running: boolean;
-  lastSyncAt: string | null;
-  lastError: string | null;
-  lastResult: { days: number; activities: number; from: string; to: string } | null;
-};
-
-const status: SyncStatus = { configured: false, running: false, lastSyncAt: null, lastError: null, lastResult: null };
 let shapesLogged = false;
 let activitiesShapeLogged = false;
-let running: Promise<SyncStatus> | null = null;
 
-export function getSyncStatus(): SyncStatus {
-  return { ...status, configured: garminConfigured() };
+/** Sync state of a profile's Garmin connection; "configured" is false when none is connected. */
+export async function getSyncStatus(userId: string): Promise<SyncStatus> {
+  const acct = await accountFor(userId);
+  return acct ? { ...acct.status } : { configured: false, running: false, lastSyncAt: null, lastError: null, lastResult: null };
 }
 
 type DayRow = Partial<Omit<typeof garminDays.$inferInsert, "userId" | "date">> & { raw?: Obj };
@@ -291,7 +339,8 @@ async function safe<T>(label: string, fn: () => Promise<T>, errors: string[]): P
   }
 }
 
-async function syncRange(userId: string, from: string, to: string) {
+async function syncRange(acct: Account, from: string, to: string) {
+  const userId = acct.userId;
   const days = new Map<string, DayRow>();
   const day = (d: string) => {
     const row = days.get(d) ?? { raw: {} };
@@ -301,9 +350,9 @@ async function syncRange(userId: string, from: string, to: string) {
   const errors: string[] = [];
 
   for (const [a, b] of chunks(from, to)) {
-    const summaries = await safe("daily summaries", () => getJson("/usersummary-service/v2/dailysummaries", { startDate: a, endDate: b }), errors);
-    const sleep = await safe("sleep", () => getJson("/sleep-service/sleep/dailySleepSummariesByDate", { startDate: a, endDate: b }), errors);
-    const hrv = await safe("hrv", () => getJson(`/hrv-service/hrv/daily/${a}/${b}`), errors);
+    const summaries = await safe("daily summaries", () => getJson(acct, "/usersummary-service/v2/dailysummaries", { startDate: a, endDate: b }), errors);
+    const sleep = await safe("sleep", () => getJson(acct, "/sleep-service/sleep/dailySleepSummariesByDate", { startDate: a, endDate: b }), errors);
+    const hrv = await safe("hrv", () => getJson(acct, `/hrv-service/hrv/daily/${a}/${b}`), errors);
 
     if (!shapesLogged) {
       logger.info({ summaries: shape(summaries), sleep: shape(sleep), hrv: shape(hrv) }, "Garmin payload shapes");
@@ -357,7 +406,7 @@ async function syncRange(userId: string, from: string, to: string) {
 
   const activities = await safe(
     "activities",
-    () => getJson("/activitylist-service/activities/search/activities", { startDate: from, endDate: to, limit: 200 }),
+    () => getJson(acct, "/activitylist-service/activities/search/activities", { startDate: from, endDate: to, limit: 200 }),
     errors,
   );
   if (!activitiesShapeLogged) {
@@ -474,13 +523,14 @@ async function syncRange(userId: string, from: string, to: string) {
   return { days: dayRows.length, activities: activityRows.length, errors };
 }
 
-/** Syncs the last `days` days (default: backfill if nothing stored yet, else the last few days). */
-export function syncGarmin(days?: number): Promise<SyncStatus> {
-  if (!garminConfigured()) return Promise.resolve(getSyncStatus());
-  running ??= (async () => {
+/** Syncs the last `days` days for one profile (default: backfill if nothing stored yet, else the last few days). */
+export async function syncGarmin(userId: string, days?: number): Promise<SyncStatus> {
+  const acct = await accountFor(userId);
+  if (!acct) return getSyncStatus(userId);
+  const status = acct.status;
+  acct.running ??= (async () => {
     status.running = true;
     try {
-      const userId = garminUserId();
       let span = days;
       if (span == null) {
         const [any] = await db.select({ id: garminDays.id }).from(garminDays).where(eq(garminDays.userId, userId)).limit(1);
@@ -488,32 +538,65 @@ export function syncGarmin(days?: number): Promise<SyncStatus> {
       }
       const to = localDate();
       const from = addDays(to, -(Math.min(Math.max(span, 1), 365) - 1));
-      const result = await syncRange(userId, from, to);
+      const result = await syncRange(acct, from, to);
       status.lastSyncAt = new Date().toISOString();
       status.lastResult = { days: result.days, activities: result.activities, from, to };
       status.lastError = result.errors.length ? result.errors.join(" | ") : null;
-      logger.info({ ...status.lastResult, errors: result.errors.length }, "Garmin sync done");
-      if (result.errors.length) logger.warn({ errors: result.errors }, "Garmin sync had partial errors");
+      logger.info({ userId, ...status.lastResult, errors: result.errors.length }, "Garmin sync done");
+      if (result.errors.length) logger.warn({ userId, errors: result.errors }, "Garmin sync had partial errors");
     } catch (err) {
       status.lastError = err instanceof Error ? err.message : String(err);
-      logger.error({ err: status.lastError, stack: err instanceof Error ? err.stack?.split("\n").slice(0, 6).join(" | ") : undefined }, "Garmin sync failed");
+      logger.error({ userId, err: status.lastError, stack: err instanceof Error ? err.stack?.split("\n").slice(0, 6).join(" | ") : undefined }, "Garmin sync failed");
     } finally {
       status.running = false;
-      running = null;
+      acct.running = null;
     }
-    return getSyncStatus();
+    return { ...status };
   })();
-  return running;
+  return acct.running;
+}
+
+/** Every profile with a Garmin connection, one after the other. */
+async function syncAll(days?: number): Promise<void> {
+  try {
+    const own = await db.select({ id: users.id }).from(users).where(isNotNull(users.garminKey));
+    const ids = new Set(own.map((u) => u.id));
+    const legacy = legacyOwner();
+    if (legacy) ids.add(legacy);
+    for (const id of ids) await syncGarmin(id, days);
+  } catch (err) {
+    logger.error({ err }, "Garmin sync round failed");
+  }
 }
 
 export function startGarminSync(): void {
-  if (!garminConfigured()) {
-    logger.info("GARMIN_API_KEY not set: Garmin sync is off");
-    return;
-  }
   // A full window on every boot keeps late-arriving watch data from slipping through
-  void syncGarmin(BACKFILL_DAYS);
-  setInterval(() => void syncGarmin(), INTERVAL_MS).unref();
+  void syncAll(BACKFILL_DAYS);
+  setInterval(() => void syncAll(), INTERVAL_MS).unref();
+}
+
+/**
+ * Connects a profile to its Garmin account. The key is checked against Garmin
+ * first, so a wrong key is refused instead of stored. Throws GarminError then.
+ */
+export async function connectGarmin(userId: string, apiKey: string): Promise<SyncStatus> {
+  if (!secretsAvailable()) throw new GarminError(0, TOKEN_PATH, "This server can't store Garmin keys yet (SECRETS_KEY is not set).");
+  const key = apiKey.trim();
+  await exchangeToken(key);
+  await db.update(users).set({ garminKey: encryptSecret(key) }).where(eq(users.id, userId));
+  accounts.delete(userId);
+  void syncGarmin(userId, BACKFILL_DAYS);
+  return getSyncStatus(userId);
+}
+
+/** Removes the profile's Garmin key and everything that was synced with it. */
+export async function disconnectGarmin(userId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ garminKey: null }).where(eq(users.id, userId));
+    await tx.delete(garminDays).where(eq(garminDays.userId, userId));
+    await tx.delete(garminActivities).where(eq(garminActivities.userId, userId));
+  });
+  accounts.delete(userId);
 }
 
 /* ── Reads ───────────────────────────────────────────────────────────────── */

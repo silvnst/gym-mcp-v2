@@ -294,8 +294,10 @@ export type GarminStatusLastResult = {
 
 export interface GarminStatus {
   configured: boolean;
-  /** True when the Garmin key belongs to this profile */
+  /** True when this profile has a Garmin account connected */
   linked: boolean;
+  /** True when profiles can connect their own Garmin account on this server */
+  canConnect?: boolean;
   running: boolean;
   lastSyncAt?: string | null;
   lastError?: string | null;
@@ -381,6 +383,10 @@ limit?: number;
 
 export type GetMuscleSetsParams = {
 days?: number;
+};
+
+export type ConnectGarminBody = {
+  apiKey: string;
 };
 
 export type SyncGarminBody = {

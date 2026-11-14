@@ -22,8 +22,7 @@ import { getDefaultUserId, sendAuthError } from "../middlewares/user-context.js"
 import { authDisabled, bearerToken, userFromToken, wwwAuthenticate } from "../lib/auth.js";
 import {
   addDays,
-  garminConfigured,
-  garminUserId,
+  garminLinked,
   getGarminActivities,
   getGarminDays,
   getReadiness,
@@ -1133,9 +1132,9 @@ function createMcpServer(userId: string): Server {
         case "get_garmin_activities":
         case "get_readiness":
         case "sync_garmin": {
-          if (!garminConfigured() || garminUserId() !== userId) {
+          if (!(await garminLinked(userId))) {
             return {
-              content: [{ type: "text", text: "Garmin is not connected to this profile. Set GARMIN_API_KEY on the server (it links to the default profile, or to GARMIN_USER_ID)." }],
+              content: [{ type: "text", text: "Garmin is not connected to this profile. Connect it in the app: profile menu, Garmin, enter the API key from Garmin Connect." }],
               isError: true,
             };
           }
@@ -1156,7 +1155,7 @@ function createMcpServer(userId: string): Server {
             result = (await getReadiness(userId)) ?? { available: false, note: "No Garmin data stored yet. Try sync_garmin." };
           } else {
             const days = typeof a["days"] === "number" ? a["days"] : undefined;
-            result = await syncGarmin(days);
+            result = await syncGarmin(userId, days);
           }
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

@@ -40,7 +40,15 @@ Frontend (read at build time, so redeploy after changing them):
 
 Remove `MCP_SECRET`; it is no longer used.
 
-An email that is neither in `AUTH_ALLOWED_EMAILS` nor in `AUTH_CLAIM_MAP` gets a 403, even if Auth0 would let it sign in. Set `AUTH_ALLOW_ANY_USER=true` only if you want open sign-up.
+An email that is neither in `AUTH_ALLOWED_EMAILS` nor in `AUTH_CLAIM_MAP` gets a 403, even if Auth0 would let it sign in.
+
+## Letting others sign up
+
+To share the app, set `AUTH_ALLOW_ANY_USER=true` and turn **Disable Sign Ups** off on the Auth0 database connection. Anyone with the link can then create an account; the email must be verified before the app lets them in. Each login gets its own empty profile and can delete it again from the profile menu (the Auth0 user itself stays and is removed in the Auth0 dashboard).
+
+Set `SECRETS_KEY` to a long random string (`openssl rand -hex 32`) so that people can connect their own Garmin account: each profile stores its personal Garmin API key encrypted with it. Keep the value; if it changes, stored keys become unreadable and have to be entered again. Without `SECRETS_KEY` the Garmin section stays hidden. The older server-wide `GARMIN_API_KEY` keeps working for the first profile as long as that profile has no key of its own.
+
+MCP clients register themselves as third-party applications (client ids start with `tpc_`). The API's "User Access: Allow" covers only your own applications, so also set the default permissions for third-party applications on the API, otherwise Auth0 answers "Client is not authorized to access resource server".
 
 ## First sign-in
 

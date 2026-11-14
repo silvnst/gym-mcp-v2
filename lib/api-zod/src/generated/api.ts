@@ -28,6 +28,14 @@ export const GetMeResponse = zod.object({
 
 
 /**
+ * @summary Delete the signed-in user's profile with all its data
+ */
+export const DeleteMeResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary Rename the signed-in user's profile
  */
 export const UpdateMeBody = zod.object({
@@ -552,7 +560,50 @@ export const RestoreTrashItemResponse = zod.object({
  */
 export const GetGarminStatusResponse = zod.object({
   "configured": zod.boolean(),
-  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Connect this profile to a Garmin account with a personal API key
+ */
+export const ConnectGarminBody = zod.object({
+  "apiKey": zod.string()
+})
+
+export const ConnectGarminResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
+  "running": zod.boolean(),
+  "lastSyncAt": zod.string().nullish(),
+  "lastError": zod.string().nullish(),
+  "lastResult": zod.object({
+  "days": zod.number().optional(),
+  "activities": zod.number().optional(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).nullish()
+})
+
+
+/**
+ * @summary Remove this profile's Garmin key and the data synced with it
+ */
+export const DisconnectGarminResponse = zod.object({
+  "configured": zod.boolean(),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
   "running": zod.boolean(),
   "lastSyncAt": zod.string().nullish(),
   "lastError": zod.string().nullish(),
@@ -574,7 +625,8 @@ export const SyncGarminBody = zod.object({
 
 export const SyncGarminResponse = zod.object({
   "configured": zod.boolean(),
-  "linked": zod.boolean().describe('True when the Garmin key belongs to this profile'),
+  "linked": zod.boolean().describe('True when this profile has a Garmin account connected'),
+  "canConnect": zod.boolean().optional().describe('True when profiles can connect their own Garmin account on this server'),
   "running": zod.boolean(),
   "lastSyncAt": zod.string().nullish(),
   "lastError": zod.string().nullish(),

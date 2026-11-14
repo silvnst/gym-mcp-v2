@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   // Auth0 subject (token `sub`) once the profile has been linked to a login
   authSub: text("auth_sub").unique(),
   email: text("email"),
+  // The profile's own Garmin Personal API key, encrypted (see api-server/src/lib/secrets.ts)
+  garminKey: text("garmin_key"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

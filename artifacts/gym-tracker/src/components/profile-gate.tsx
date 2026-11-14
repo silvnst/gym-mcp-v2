@@ -114,7 +114,11 @@ function ProfileLoader({ signOut, children }: { signOut: (() => void) | null; ch
     return (
       <Screen
         title="No access"
-        text="This account can't use the app. Sign out and try another one."
+        text={
+          typeof (error as { data?: { error?: unknown } } | null)?.data?.error === "string"
+            ? `${(error as { data: { error: string } }).data.error}. Sign out and try again.`
+            : "This account can't use the app. Sign out and try another one."
+        }
         action={
           signOut && (
             <button

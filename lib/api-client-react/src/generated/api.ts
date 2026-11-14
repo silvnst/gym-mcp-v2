@@ -21,6 +21,7 @@ import type {
 
 import type {
   BestSet,
+  ConnectGarminBody,
   CreatePlanBody,
   CreateSessionBody,
   CreateSessionExerciseBody,
@@ -221,6 +222,76 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
 
 
 
+
+export const getDeleteMeUrl = () => {
+
+
+
+
+  return `/api/users/me`
+}
+
+/**
+ * @summary Delete the signed-in user's profile with all its data
+ */
+export const deleteMe = async ( options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteMeUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMe>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMe>>, TError,void, TContext> => {
+
+const mutationKey = ['deleteMe'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMe>>, void> = () => {
+
+
+          return  deleteMe(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMe>>>
+
+    export type DeleteMeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete the signed-in user's profile with all its data
+ */
+export const useDeleteMe = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMe>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMe>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteMeMutationOptions(options));
+    }
 
 export const getUpdateMeUrl = () => {
 
@@ -1888,6 +1959,147 @@ export function useGetGarminStatus<TData = Awaited<ReturnType<typeof getGarminSt
 
 
 
+
+export const getConnectGarminUrl = () => {
+
+
+
+
+  return `/api/garmin/key`
+}
+
+/**
+ * @summary Connect this profile to a Garmin account with a personal API key
+ */
+export const connectGarmin = async (connectGarminBody: ConnectGarminBody, options?: RequestInit): Promise<GarminStatus> => {
+
+  return customFetch<GarminStatus>(getConnectGarminUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      connectGarminBody,)
+  }
+);}
+
+
+
+
+export const getConnectGarminMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectGarmin>>, TError,{data: BodyType<ConnectGarminBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof connectGarmin>>, TError,{data: BodyType<ConnectGarminBody>}, TContext> => {
+
+const mutationKey = ['connectGarmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof connectGarmin>>, {data: BodyType<ConnectGarminBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  connectGarmin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConnectGarminMutationResult = NonNullable<Awaited<ReturnType<typeof connectGarmin>>>
+    export type ConnectGarminMutationBody = BodyType<ConnectGarminBody>
+    export type ConnectGarminMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Connect this profile to a Garmin account with a personal API key
+ */
+export const useConnectGarmin = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectGarmin>>, TError,{data: BodyType<ConnectGarminBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof connectGarmin>>,
+        TError,
+        {data: BodyType<ConnectGarminBody>},
+        TContext
+      > => {
+      return useMutation(getConnectGarminMutationOptions(options));
+    }
+
+export const getDisconnectGarminUrl = () => {
+
+
+
+
+  return `/api/garmin/key`
+}
+
+/**
+ * @summary Remove this profile's Garmin key and the data synced with it
+ */
+export const disconnectGarmin = async ( options?: RequestInit): Promise<GarminStatus> => {
+
+  return customFetch<GarminStatus>(getDisconnectGarminUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDisconnectGarminMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGarmin>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectGarmin>>, TError,void, TContext> => {
+
+const mutationKey = ['disconnectGarmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectGarmin>>, void> = () => {
+
+
+          return  disconnectGarmin(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectGarminMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectGarmin>>>
+
+    export type DisconnectGarminMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove this profile's Garmin key and the data synced with it
+ */
+export const useDisconnectGarmin = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGarmin>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectGarmin>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisconnectGarminMutationOptions(options));
+    }
 
 export const getSyncGarminUrl = () => {
 
