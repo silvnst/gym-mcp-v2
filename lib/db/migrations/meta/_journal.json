@@ -50,6 +50,13 @@
       "when": 1794669265589,
       "tag": "0006_garmin_key_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795629943695,
+      "tag": "0007_active_plans",
+      "breakpoints": true
     }
   ]
 }

@@ -187,6 +187,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: patchPlan
+      tags: [plans]
+      summary: Mark a plan as active or inactive
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchPlanBody"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanWithExercises"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deletePlan
       tags: [plans]
@@ -928,6 +957,9 @@ components:
         notes:
           type: string
           nullable: true
+        active:
+          type: boolean
+          description: Part of the current programme. Today suggests the active plan done least recently.
         createdAt:
           type: string
         exercises:
@@ -937,8 +969,17 @@ components:
       required:
         - id
         - name
+        - active
         - createdAt
         - exercises
+
+    PatchPlanBody:
+      type: object
+      properties:
+        active:
+          type: boolean
+      required:
+        - active
 
     CreatePlanExerciseBody:
       type: object
@@ -981,6 +1022,9 @@ components:
         notes:
           type: string
           nullable: true
+        active:
+          type: boolean
+          description: Left unchanged on update when omitted; new plans start inactive.
         exercises:
           type: array
           items:

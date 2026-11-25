@@ -33,6 +33,7 @@ function serializePlan(plan: Plan & { planExercises: PlanExercise[] }) {
     id: plan.id,
     name: plan.name,
     notes: plan.notes,
+    active: plan.active,
     createdAt: plan.createdAt,
     exercises: plan.planExercises.map(serializePlanExercise),
   };
@@ -66,8 +67,11 @@ const createPlanExerciseSchema = z.object({
 const createPlanSchema = z.object({
   name: z.string().min(1),
   notes: z.string().nullable().optional(),
+  active: z.boolean().optional(),
   exercises: z.array(createPlanExerciseSchema),
 });
+
+const patchPlanSchema = z.object({ active: z.boolean() });
 
 type CreatePlanInput = z.infer<typeof createPlanSchema>;
 
@@ -109,11 +113,11 @@ router.post("/plans", async (req, res) => {
     return;
   }
 
-  const { name, notes, exercises } = parsed.data;
+  const { name, notes, active, exercises } = parsed.data;
 
   try {
     const planId = await db.transaction(async (tx) => {
-      const [plan] = await tx.insert(plans).values({ name, notes, userId: req.userId }).returning();
+      const [plan] = await tx.insert(plans).values({ name, notes, active: active ?? false, userId: req.userId }).returning();
       if (exercises.length > 0) {
         await tx.insert(planExercises).values(buildExerciseValues(exercises, plan.id));
       }
@@ -149,7 +153,7 @@ router.put("/plans/:id", async (req, res) => {
     return;
   }
 
-  const { name, notes, exercises } = parsed.data;
+  const { name, notes, active, exercises } = parsed.data;
   const planId = req.params.id!;
 
   try {
@@ -159,7 +163,7 @@ router.put("/plans/:id", async (req, res) => {
       });
       if (!existing) return null;
 
-      await tx.update(plans).set({ name, notes }).where(eq(plans.id, planId));
+      await tx.update(plans).set({ name, notes, ...(active !== undefined && { active }) }).where(eq(plans.id, planId));
       await tx.delete(planExercises).where(eq(planExercises.planId, planId));
 
       if (exercises.length > 0) {
@@ -175,6 +179,30 @@ router.put("/plans/:id", async (req, res) => {
 
     const result = await getPlanWithExercises(planId, req.userId);
     res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Failed to update plan");
+    res.status(500).json({ error: "Failed to update plan" });
+  }
+});
+
+router.patch("/plans/:id", async (req, res) => {
+  const parsed = patchPlanSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const [updated] = await db
+      .update(plans)
+      .set({ active: parsed.data.active })
+      .where(and(eq(plans.id, req.params.id!), eq(plans.userId, req.userId)))
+      .returning({ id: plans.id });
+    if (!updated) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+    res.json(await getPlanWithExercises(updated.id, req.userId));
   } catch (err) {
     req.log.error({ err }, "Failed to update plan");
     res.status(500).json({ error: "Failed to update plan" });

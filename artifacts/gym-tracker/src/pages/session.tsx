@@ -12,22 +12,19 @@ import {
   type SessionExerciseWithSets,
   type SessionWithDetail,
   type SetRecord,
-  type Effort,
 } from "@workspace/api-client-react";
 import { useQueryClient, useIsMutating } from "@tanstack/react-query";
-import { ArrowUp, Check, List, Plus, Crosshair } from "lucide-react";
+import { Check, List, Plus, Crosshair } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BpButton, Card, IconButton, PlateLoader, SectionLabel, Stepper } from "@/components/bumper";
 import {
   cleanName,
-  EFFORT_LABELS,
   equipmentOf,
   formatKg,
   formatSet,
   formatTime,
   groupBySuperset,
   isTimed,
-  suggestWeight,
   weightStep,
 } from "@/lib/training";
 import { cn } from "@/lib/utils";
@@ -115,15 +112,14 @@ function setContext(step: Step) {
   const usesWeight = !timed && equipment !== "bodyweight";
   const exerciseSets = exercise.sets.slice().sort((a, b) => a.setNumber - b.setNumber);
   const prev = exerciseSets.filter((s) => s.setNumber < set.setNumber && isDone(s)).at(-1);
-  const suggestion = suggestWeight(prev?.weightKg ?? null, prev?.effort, equipment);
   const start: Draft = {
-    weight: usesWeight ? (set.weightKg ?? suggestion ?? prev?.weightKg ?? exercise.targetWeightKg ?? set.lastWeightKg ?? 0) : null,
+    weight: usesWeight ? (set.weightKg ?? prev?.weightKg ?? exercise.targetWeightKg ?? set.lastWeightKg ?? 0) : null,
     reps: set.reps ?? exercise.targetReps ?? prev?.reps ?? set.lastReps ?? 8,
     seconds: timed
       ? (set.durationSeconds ?? exercise.targetSeconds ?? prev?.durationSeconds ?? exercise.lastTime?.sets.find((l) => l.setNumber === set.setNumber)?.durationSeconds ?? 180)
       : null,
   };
-  return { equipment, timed, usesWeight, exerciseSets, prev, suggestion, start };
+  return { equipment, timed, usesWeight, exerciseSets, prev, start };
 }
 
 /** What gets stored for a set: a time for timed exercises, otherwise weight and reps. */
@@ -222,9 +218,6 @@ function Workout({ session }: { session: SessionWithDetail }) {
     setFocusId(null);
   };
 
-  const rateSet = (setId: string, effort: Effort) => {
-    updateSet.mutate({ id: setId, data: { effort } }, { onSuccess: refresh });
-  };
 
   return (
     <div className="-mx-5">
@@ -285,7 +278,6 @@ function Workout({ session }: { session: SessionWithDetail }) {
         <AfterSetSheet
           saved={saved}
           next={sequence.find((s) => !isDone(s.set) && !saved.some((d) => d.step.set.id === s.set.id)) ?? null}
-          onRate={rateSet}
           onContinue={() => {
             setSaved(null);
             setView("focus");
@@ -301,19 +293,6 @@ function Workout({ session }: { session: SessionWithDetail }) {
 }
 
 /* ── Focus: one set at a time ───────────────────────────────────────────── */
-
-function SuggestionLine({ step }: { step: Step }) {
-  const { prev, suggestion } = setContext(step);
-  if (suggestion == null || !prev?.effort || prev.effort === "right") return null;
-  return (
-    <p className="flex gap-2 items-start text-sm text-bp-muted">
-      <ArrowUp className={cn("w-[18px] h-[18px] shrink-0 mt-px text-bp-ink", prev.effort === "hard" && "rotate-180")} aria-hidden="true" />
-      <span>
-        Set {prev.setNumber} was {prev.effort === "easy" ? "too easy" : "too hard"}. Try <b className="text-bp-ink tabular">{formatKg(suggestion)} kg</b>.
-      </span>
-    </p>
-  );
-}
 
 /** Every set of this exercise from the last workout that logged it; the one matching the current set stands out. */
 function LastTime({ exercise, currentSetNumber }: { exercise: SessionExerciseWithSets; currentSetNumber: number }) {
@@ -397,7 +376,6 @@ function FocusSet({ step, sequence, onSave }: { step: Step; sequence: Step[]; on
         </div>
       )}
 
-      <SuggestionLine step={step} />
       {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
       <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
 
@@ -452,7 +430,6 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
                 step={1}
               />
             </div>
-            <SuggestionLine step={step} />
             {equipment === "barbell" && <PlateLoader totalKg={draft.weight} />}
             <LastTime exercise={exercise} currentSetNumber={set.setNumber} />
           </Card>
@@ -471,27 +448,23 @@ function RoundSet({ steps, onSave }: { steps: Step[]; onSave: (sets: SavedSet[])
   );
 }
 
-/* ── After saving: how did it feel, what's next ─────────────────────────── */
+/* ── After saving: what's next ─────────────────────────── */
 
 function AfterSetSheet({
   saved,
   next,
-  onRate,
   onContinue,
   onFinish,
 }: {
   saved: SavedSet[];
   next: Step | null;
-  onRate: (setId: string, effort: Effort) => void;
   onContinue: () => void;
   onFinish: () => void;
 }) {
-  const [efforts, setEfforts] = useState<Record<string, Effort>>(() => Object.fromEntries(saved.map((d) => [d.step.set.id, d.step.set.effort ?? null])));
   const first = saved[0]!;
   const single = saved.length === 1 ? first : null;
   const nextSameExercise = single != null && next?.exercise.id === single.step.exercise.id;
   const nextSameSuperset = first.step.round != null && next?.round?.key === first.step.round.key;
-  const following = single ? suggestWeight(single.weightKg, efforts[single.step.set.id], equipmentOf(single.step.exercise)) : null;
   const continueRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -526,41 +499,15 @@ function AfterSetSheet({
           </div>
         </div>
 
-        {saved.map((d) => {
-          const id = d.step.set.id;
-          const labelId = `effort-label-${id}`;
-          return (
-            <div key={id} className="space-y-2">
-              <h3 id={labelId} className="font-sans font-bold text-[15px]">
-                {single ? "How did that set feel?" : `${d.step.exercise.name} ${formatSet(d.weightKg, d.reps, equipmentOf(d.step.exercise), d.durationSeconds)}`}
-              </h3>
-              <div role="group" aria-labelledby={labelId} className="grid grid-cols-3 gap-2">
-                {(["easy", "right", "hard"] as const).map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    aria-pressed={efforts[id] === e}
-                    onClick={() => {
-                      setEfforts({ ...efforts, [id]: e });
-                      onRate(id, e);
-                    }}
-                    className={cn(
-                      "rounded-[10px] border-2 border-bp-outline font-bold text-[15px]",
-                      single ? "min-h-[52px]" : "min-h-11",
-                      efforts[id] === e ? "bg-bp-brand text-bp-on-brand" : "bg-transparent text-bp-ink",
-                    )}
-                  >
-                    {EFFORT_LABELS[e]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {single && efforts[single.step.set.id] && nextSameExercise && following != null && (
-          <p className="text-[13px] text-bp-muted">
-            {efforts[single.step.set.id] === "right" ? `Set ${next!.set.setNumber} stays at ${formatKg(following)} kg.` : `Set ${next!.set.setNumber} goes to ${formatKg(following)} kg.`}
-          </p>
+        {!single && (
+          <ul className="space-y-1 text-[15px]">
+            {saved.map((d) => (
+              <li key={d.step.set.id} className="flex justify-between gap-3">
+                <span className="truncate">{d.step.exercise.name}</span>
+                <span className="tabular shrink-0">{formatSet(d.weightKg, d.reps, equipmentOf(d.step.exercise), d.durationSeconds)}</span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {next ? (
