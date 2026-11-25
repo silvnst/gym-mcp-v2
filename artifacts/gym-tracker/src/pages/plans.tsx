@@ -2,9 +2,9 @@ import { Link } from "wouter";
 import { parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Play, Zap } from "lucide-react";
-import { getListPlansQueryKey, useListPlans, useListSessions, usePatchPlan, type PlanWithExercises } from "@workspace/api-client-react";
+import { getListPlansQueryKey, useListPlans, useListSessions, usePatchPlan, type PlanWithExercises, type SessionSummary } from "@workspace/api-client-react";
 import { BpButton, Card, Chip, PageTitle, SectionLabel } from "@/components/bumper";
-import { cleanName, daysBetween, groupBySuperset, lastDoneByPlan, pickNextPlan, rotation } from "@/lib/training";
+import { cleanName, daysBetween, groupBySuperset, lastDoneByPlan } from "@/lib/training";
 import { useStartWorkout } from "@/lib/start-workout";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,10 +35,10 @@ export default function PlansPage() {
     patchPlan.mutate({ id: plan.id, data: { active } });
   };
 
-  const lastDone = plans && sessions ? lastDoneByPlan(plans, sessions) : new Map<string, string>();
-  const active = plans ? rotation(plans, lastDone) : [];
+  // Same order as before (newest first); the rotation itself only shows on Today
+  const lastDone = plans && sessions ? lastDoneByPlan(plans, sessions) : new Map<string, SessionSummary>();
+  const active = plans?.filter((p) => p.active) ?? [];
   const others = plans?.filter((p) => !p.active) ?? [];
-  const nextId = plans && sessions ? pickNextPlan(plans, sessions)?.id : undefined;
 
   const renderPlan = (plan: PlanWithExercises) => {
     const exercises = plan.exercises.slice().sort((a, b) => a.sortOrder - b.sortOrder);
@@ -48,12 +48,11 @@ export default function PlansPage() {
         <Card className="space-y-3">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
-              {plan.id === nextId && <p className="text-[13px] font-bold text-bp-muted">Up next</p>}
               <h2 className="font-display font-extrabold text-[22px] leading-[26px] truncate" data-testid={`text-plan-name-${plan.id}`}>
                 {cleanName(plan.name)}
               </h2>
               <p className="text-[13px] text-bp-muted mt-0.5">
-                {exercises.length} {exercises.length === 1 ? "exercise" : "exercises"}, {lastDoneLabel(lastDone.get(plan.id))}
+                {exercises.length} {exercises.length === 1 ? "exercise" : "exercises"}, {lastDoneLabel(lastDone.get(plan.id)?.date)}
               </p>
             </div>
             <Link
@@ -131,7 +130,7 @@ export default function PlansPage() {
       ) : (
         <div className="space-y-6">
           <section>
-            <SectionLabel right={active.length > 1 ? "Done least recently comes next" : undefined}>Active</SectionLabel>
+            <SectionLabel>Active</SectionLabel>
             {active.length > 0 ? (
               <ul className="space-y-4">{active.map(renderPlan)}</ul>
             ) : (

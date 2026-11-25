@@ -103,15 +103,20 @@ export function daysBetween(a: Date, b: Date): number {
   return Math.round(ms / 86_400_000);
 }
 
+/** Orders sessions by day, then by when they were started (several on one day). */
+const doneKey = (s: SessionSummary) => `${s.date} ${s.createdAt}`;
+
 /**
- * The date each plan was last done. Sessions come newest first; one without a plan id
- * (logged before plans were linked) matches its plan by name.
+ * The latest session of each plan. A session without a plan id (logged before plans
+ * were linked) matches its plan by name.
  */
-export function lastDoneByPlan(plans: PlanWithExercises[], sessions: SessionSummary[]): Map<string, string> {
-  const last = new Map<string, string>();
+export function lastDoneByPlan(plans: PlanWithExercises[], sessions: SessionSummary[]): Map<string, SessionSummary> {
+  const last = new Map<string, SessionSummary>();
   for (const s of sessions) {
     const plan = plans.find((p) => p.id === s.planId) ?? plans.find((p) => cleanName(p.name) === cleanName(s.name));
-    if (plan && !last.has(plan.id)) last.set(plan.id, s.date);
+    if (!plan) continue;
+    const seen = last.get(plan.id);
+    if (!seen || doneKey(s) > doneKey(seen)) last.set(plan.id, s);
   }
   return last;
 }
@@ -120,10 +125,12 @@ export function lastDoneByPlan(plans: PlanWithExercises[], sessions: SessionSumm
  * Active plans in the order Today suggests them: the one done least recently first,
  * so two active plans alternate. Plans never done come first, oldest plan first.
  */
-export function rotation(plans: PlanWithExercises[], lastDone: Map<string, string>): PlanWithExercises[] {
-  return plans
-    .filter((p) => p.active)
-    .sort((a, b) => (lastDone.get(a.id) ?? "").localeCompare(lastDone.get(b.id) ?? "") || a.createdAt.localeCompare(b.createdAt));
+export function rotation(plans: PlanWithExercises[], lastDone: Map<string, SessionSummary>): PlanWithExercises[] {
+  const key = (p: PlanWithExercises) => {
+    const s = lastDone.get(p.id);
+    return s ? doneKey(s) : "";
+  };
+  return plans.filter((p) => p.active).sort((a, b) => key(a).localeCompare(key(b)) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** What to train next: the head of the rotation, or the newest plan when none is active. */
