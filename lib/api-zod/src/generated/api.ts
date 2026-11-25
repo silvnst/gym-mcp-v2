@@ -56,6 +56,7 @@ export const ListPlansResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "notes": zod.string().nullish(),
+  "active": zod.boolean().describe('Part of the current programme. Today suggests the active plan done least recently.'),
   "createdAt": zod.string(),
   "exercises": zod.array(zod.object({
   "id": zod.string(),
@@ -80,6 +81,7 @@ export const ListPlansResponse = zod.array(ListPlansResponseItem)
 export const CreatePlanBody = zod.object({
   "name": zod.string(),
   "notes": zod.string().nullish(),
+  "active": zod.boolean().optional().describe('Left unchanged on update when omitted; new plans start inactive.'),
   "exercises": zod.array(zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
@@ -105,6 +107,7 @@ export const GetPlanResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "notes": zod.string().nullish(),
+  "active": zod.boolean().describe('Part of the current programme. Today suggests the active plan done least recently.'),
   "createdAt": zod.string(),
   "exercises": zod.array(zod.object({
   "id": zod.string(),
@@ -132,6 +135,7 @@ export const UpdatePlanParams = zod.object({
 export const UpdatePlanBody = zod.object({
   "name": zod.string(),
   "notes": zod.string().nullish(),
+  "active": zod.boolean().optional().describe('Left unchanged on update when omitted; new plans start inactive.'),
   "exercises": zod.array(zod.object({
   "name": zod.string(),
   "sortOrder": zod.number(),
@@ -149,6 +153,40 @@ export const UpdatePlanResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "notes": zod.string().nullish(),
+  "active": zod.boolean().describe('Part of the current programme. Today suggests the active plan done least recently.'),
+  "createdAt": zod.string(),
+  "exercises": zod.array(zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "name": zod.string(),
+  "sortOrder": zod.number(),
+  "targetSets": zod.number(),
+  "targetSeconds": zod.number().nullish().describe('Target time in seconds for timed exercises (equipment cardio)'),
+  "targetReps": zod.number(),
+  "targetWeightKg": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "supersetGroup": zod.string().nullish().describe('Exercises sharing a group letter are done as a superset'),
+  "equipment": zod.union([zod.literal('barbell'),zod.literal('dumbbell'),zod.literal('bodyweight'),zod.literal('machine'),zod.literal('cable'),zod.literal('cardio'),zod.literal('other'),zod.literal(null)]).nullish()
+}))
+})
+
+
+/**
+ * @summary Mark a plan as active or inactive
+ */
+export const PatchPlanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PatchPlanBody = zod.object({
+  "active": zod.boolean()
+})
+
+export const PatchPlanResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "notes": zod.string().nullish(),
+  "active": zod.boolean().describe('Part of the current programme. Today suggests the active plan done least recently.'),
   "createdAt": zod.string(),
   "exercises": zod.array(zod.object({
   "id": zod.string(),

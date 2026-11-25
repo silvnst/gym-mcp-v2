@@ -38,6 +38,7 @@ import type {
   ListGarminActivitiesParams,
   ListSessionsParams,
   MuscleSets,
+  PatchPlanBody,
   PlanWithExercises,
   ProgressDataPoint,
   Readiness,
@@ -659,6 +660,78 @@ export const useUpdatePlan = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdatePlanMutationOptions(options));
+    }
+
+export const getPatchPlanUrl = (id: string,) => {
+
+
+
+
+  return `/api/plans/${id}`
+}
+
+/**
+ * @summary Mark a plan as active or inactive
+ */
+export const patchPlan = async (id: string,
+    patchPlanBody: PatchPlanBody, options?: RequestInit): Promise<PlanWithExercises> => {
+
+  return customFetch<PlanWithExercises>(getPatchPlanUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      patchPlanBody,)
+  }
+);}
+
+
+
+
+export const getPatchPlanMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchPlan>>, TError,{id: string;data: BodyType<PatchPlanBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchPlan>>, TError,{id: string;data: BodyType<PatchPlanBody>}, TContext> => {
+
+const mutationKey = ['patchPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchPlan>>, {id: string;data: BodyType<PatchPlanBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  patchPlan(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchPlanMutationResult = NonNullable<Awaited<ReturnType<typeof patchPlan>>>
+    export type PatchPlanMutationBody = BodyType<PatchPlanBody>
+    export type PatchPlanMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark a plan as active or inactive
+ */
+export const usePatchPlan = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchPlan>>, TError,{id: string;data: BodyType<PatchPlanBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchPlan>>,
+        TError,
+        {id: string;data: BodyType<PatchPlanBody>},
+        TContext
+      > => {
+      return useMutation(getPatchPlanMutationOptions(options));
     }
 
 export const getDeletePlanUrl = (id: string,) => {

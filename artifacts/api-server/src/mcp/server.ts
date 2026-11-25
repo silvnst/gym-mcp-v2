@@ -94,6 +94,7 @@ const planExerciseInputSchema = z.object({
 const createPlanArgsSchema = z.object({
   name: z.string().min(1),
   notes: z.string().nullable().optional(),
+  active: z.boolean().optional(),
   exercises: z.array(planExerciseInputSchema),
 });
 
@@ -101,6 +102,7 @@ const updatePlanArgsSchema = z.object({
   plan_id: z.string().min(1),
   name: z.string().min(1),
   notes: z.string().nullable().optional(),
+  active: z.boolean().optional(),
   exercises: z.array(planExerciseInputSchema),
 });
 
@@ -208,7 +210,8 @@ function createMcpServer(userId: string): Server {
       },
       {
         name: "get_plans",
-        description: "Returns all workout plans with their exercises and targets.",
+        description:
+          "Returns all workout plans with their exercises and targets. Active plans form the current programme: the app suggests the active plan done least recently, so two active plans alternate.",
         annotations: { readOnlyHint: true },
         inputSchema: { type: "object", properties: {} },
       },
@@ -307,6 +310,10 @@ function createMcpServer(userId: string): Server {
           properties: {
             name: { type: "string", description: "Plan name, e.g. 'PPL Push A'." },
             notes: { type: "string", description: "Optional notes for the plan." },
+            active: {
+              type: "boolean",
+              description: "Part of the current programme. The app suggests the active plan done least recently. Defaults to false.",
+            },
             exercises: {
               type: "array",
               description: "Ordered list of exercises for the plan.",
@@ -347,6 +354,10 @@ function createMcpServer(userId: string): Server {
             plan_id: { type: "string", description: "The plan ID to update." },
             name: { type: "string", description: "New plan name." },
             notes: { type: "string", description: "Optional notes for the plan." },
+            active: {
+              type: "boolean",
+              description: "Part of the current programme. The app suggests the active plan done least recently. Left unchanged when omitted.",
+            },
             exercises: {
               type: "array",
               description: "Full replacement list of exercises.",
@@ -612,6 +623,7 @@ function createMcpServer(userId: string): Server {
             id: plan.id,
             name: plan.name,
             notes: plan.notes,
+            active: plan.active,
             exercises: plan.planExercises.map((pe) => ({
               name: pe.name,
               sortOrder: pe.sortOrder,
@@ -867,12 +879,12 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const { name, notes, exercises } = parsed.data;
+          const { name, notes, active, exercises } = parsed.data;
 
           const planId = await db.transaction(async (tx) => {
             const [plan] = await tx
               .insert(plans)
-              .values({ name, notes: notes ?? null, userId })
+              .values({ name, notes: notes ?? null, active: active ?? false, userId })
               .returning({ id: plans.id });
 
             if (exercises.length > 0) {
@@ -911,7 +923,7 @@ function createMcpServer(userId: string): Server {
             };
           }
 
-          const { plan_id, name, notes, exercises } = parsed.data;
+          const { plan_id, name, notes, active, exercises } = parsed.data;
 
           const updated = await db.transaction(async (tx) => {
             const existing = await tx.query.plans.findFirst({
@@ -919,7 +931,7 @@ function createMcpServer(userId: string): Server {
             });
             if (!existing) return false;
 
-            await tx.update(plans).set({ name, notes: notes ?? null }).where(eq(plans.id, plan_id));
+            await tx.update(plans).set({ name, notes: notes ?? null, ...(active !== undefined && { active }) }).where(eq(plans.id, plan_id));
             await tx.delete(planExercises).where(eq(planExercises.planId, plan_id));
 
             if (exercises.length > 0) {

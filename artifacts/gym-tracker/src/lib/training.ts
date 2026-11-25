@@ -1,6 +1,6 @@
-/** Training helpers for the UI: estimates, plates, suggestions, grouping. */
+/** Training helpers for the UI: estimates, plates, grouping, next plan. */
 
-import type { Effort, Equipment } from "@workspace/api-client-react";
+import type { Equipment, PlanWithExercises, SessionSummary } from "@workspace/api-client-react";
 
 /** Epley estimate of a one-rep max. */
 export function epley(weightKg: number | null | undefined, reps: number | null | undefined): number | null {
@@ -81,21 +81,6 @@ export function platesPerSide(totalKg: number, barKg = BAR_KG): Plate[] | null {
   return perSide < 0.01 ? plates : null;
 }
 
-/** Next-set weight from how the last set felt. */
-export function suggestWeight(lastWeightKg: number | null, effort: Effort | null | undefined, equipment: Equipment | null): number | null {
-  if (lastWeightKg == null || lastWeightKg <= 0 || !effort) return null;
-  const step = weightStep(equipment);
-  if (effort === "easy") return lastWeightKg + step;
-  if (effort === "hard") return Math.max(0, lastWeightKg - step);
-  return lastWeightKg;
-}
-
-export const EFFORT_LABELS: Record<Exclude<Effort, null>, string> = {
-  easy: "Too easy",
-  right: "Just right",
-  hard: "Too hard",
-};
-
 /** Groups consecutive exercises that share a superset letter. */
 export function groupBySuperset<T extends { supersetGroup?: string | null }>(items: T[]): { group: string | null; items: T[] }[] {
   const out: { group: string | null; items: T[] }[] = [];
@@ -116,4 +101,34 @@ export function cleanName(name: string): string {
 export function daysBetween(a: Date, b: Date): number {
   const ms = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
   return Math.round(ms / 86_400_000);
+}
+
+/**
+ * The date each plan was last done. Sessions come newest first; one without a plan id
+ * (logged before plans were linked) matches its plan by name.
+ */
+export function lastDoneByPlan(plans: PlanWithExercises[], sessions: SessionSummary[]): Map<string, string> {
+  const last = new Map<string, string>();
+  for (const s of sessions) {
+    const plan = plans.find((p) => p.id === s.planId) ?? plans.find((p) => cleanName(p.name) === cleanName(s.name));
+    if (plan && !last.has(plan.id)) last.set(plan.id, s.date);
+  }
+  return last;
+}
+
+/**
+ * Active plans in the order Today suggests them: the one done least recently first,
+ * so two active plans alternate. Plans never done come first, oldest plan first.
+ */
+export function rotation(plans: PlanWithExercises[], lastDone: Map<string, string>): PlanWithExercises[] {
+  return plans
+    .filter((p) => p.active)
+    .sort((a, b) => (lastDone.get(a.id) ?? "").localeCompare(lastDone.get(b.id) ?? "") || a.createdAt.localeCompare(b.createdAt));
+}
+
+/** What to train next: the head of the rotation, or the newest plan when none is active. */
+export function pickNextPlan(plans: PlanWithExercises[], sessions: SessionSummary[]): PlanWithExercises | null {
+  const next = rotation(plans, lastDoneByPlan(plans, sessions))[0];
+  if (next) return next;
+  return plans.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 }

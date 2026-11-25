@@ -2,6 +2,7 @@ import {
   pgTable,
   text,
   integer,
+  boolean,
   numeric,
   timestamp,
   date,
@@ -33,6 +34,8 @@ export const plans = pgTable("plans", {
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   notes: text("notes"),
+  // Active plans form the current programme; Today suggests the one done least recently
+  active: boolean("active").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

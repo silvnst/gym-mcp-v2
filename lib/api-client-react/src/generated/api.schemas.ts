@@ -92,8 +92,14 @@ export interface PlanWithExercises {
   id: string;
   name: string;
   notes?: string | null;
+  /** Part of the current programme. Today suggests the active plan done least recently. */
+  active: boolean;
   createdAt: string;
   exercises: PlanExerciseRecord[];
+}
+
+export interface PatchPlanBody {
+  active: boolean;
 }
 
 export interface CreatePlanExerciseBody {
@@ -113,6 +119,8 @@ export interface CreatePlanExerciseBody {
 export interface CreatePlanBody {
   name: string;
   notes?: string | null;
+  /** Left unchanged on update when omitted; new plans start inactive. */
+  active?: boolean;
   exercises: CreatePlanExerciseBody[];
 }
 

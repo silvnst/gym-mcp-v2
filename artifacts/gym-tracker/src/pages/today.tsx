@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { Clock, Play, ArrowRight } from "lucide-react";
-import { useListPlans, useListSessions, useGetBests, type PlanWithExercises, type SessionSummary } from "@workspace/api-client-react";
+import { useListPlans, useListSessions, useGetBests, type PlanWithExercises } from "@workspace/api-client-react";
 import { useProfile } from "@/lib/profile";
 import { ProfileAvatar } from "@/components/profile-gate";
 import { ProfileSheet } from "@/components/layout";
 import { BpButton, Card, Notice, PageTitle, SectionLabel } from "@/components/bumper";
-import { cleanName, daysBetween, formatKg, groupBySuperset } from "@/lib/training";
+import { cleanName, daysBetween, formatKg, groupBySuperset, pickNextPlan } from "@/lib/training";
 import { useStartWorkout } from "@/lib/start-workout";
 import { ReadinessCard } from "@/components/readiness";
 import { cn } from "@/lib/utils";
@@ -15,30 +15,7 @@ import { cn } from "@/lib/utils";
 const COMEBACK_DAYS = 14;
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-const ACTIVE_DAYS = 28;
 const CONTINUE_HOURS = 24;
-
-/**
- * What to train next. Plans used in the last four weeks form the current programme;
- * among those, the one trained least recently is next (so A/B splits alternate and a
- * single comeback plan repeats). With nothing recent, the newest plan is suggested.
- */
-function pickNextPlan(plans: PlanWithExercises[], sessions: SessionSummary[], today: Date): PlanWithExercises | null {
-  if (plans.length === 0) return null;
-  const lastByPlan = new Map<string, string>();
-  for (const s of sessions) {
-    const plan = plans.find((p) => p.id === s.planId) ?? plans.find((p) => cleanName(p.name) === cleanName(s.name));
-    if (plan && !lastByPlan.has(plan.id)) lastByPlan.set(plan.id, s.date);
-  }
-  const active = plans.filter((p) => {
-    const last = lastByPlan.get(p.id);
-    return last != null && daysBetween(parseISO(last), today) <= ACTIVE_DAYS;
-  });
-  if (active.length === 0) {
-    return plans.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
-  }
-  return active.sort((a, b) => lastByPlan.get(a.id)!.localeCompare(lastByPlan.get(b.id)!))[0] ?? null;
-}
 
 export default function TodayPage() {
   const { user } = useProfile();
@@ -54,7 +31,7 @@ export default function TodayPage() {
   const unfinished =
     lastSession && lastSession.durationMin == null && today.getTime() - new Date(lastSession.createdAt).getTime() < CONTINUE_HOURS * 3_600_000 ? lastSession : null;
   const daysOff = lastSession ? daysBetween(parseISO(lastSession.date), today) : null;
-  const next = plans && sessions ? pickNextPlan(plans, sessions, today) : null;
+  const next = plans && sessions ? pickNextPlan(plans, sessions) : null;
 
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const week = WEEKDAYS.map((label, i) => {
